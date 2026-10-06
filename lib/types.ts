@@ -44,7 +44,8 @@ export const GeneratedItemSchema = z.object({
   category: z.enum(CATEGORIES),
   priority: z.enum(PRIORITIES),
   reason: z.string(),
-  qty: z.number().int().min(1).max(20),
+  // No max here: models sometimes over-count, and offers.ts clamps instead of rejecting the registry.
+  qty: z.number().describe("Units to register for, 1-20. Count packs or sets, e.g. 4 packs of diapers, not 200 diapers."),
   searchQuery: z.string(),
 });
 export type GeneratedItem = z.infer<typeof GeneratedItemSchema>;

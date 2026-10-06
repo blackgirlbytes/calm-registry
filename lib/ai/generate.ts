@@ -13,6 +13,7 @@ Given a parent profile, return 25-35 items. Rules:
 - category must be one of: Sleep, Feeding, Diapering, Bath, On-the-go, Clothing, Health, Play.
 - priority: "must-have" (needed in the first weeks), "nice-to-have", or "later" (3-12 months).
 - reason: ONE short, reassuring sentence explaining why this item helps THEM specifically.
+- qty: 1-20, counted in packs or sets (e.g. 4 packs of diapers, 8 bodysuits).
 - searchQuery: a concise generic product search (e.g. "convertible car seat"), no brand names.
 - Respect their space (apartment = compact), car use, feeding plan, budget and values.
 - Leave out anything they already have. Avoid gimmicks; favor safety-first, proven essentials.

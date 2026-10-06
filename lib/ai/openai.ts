@@ -7,6 +7,19 @@ export function isOpenAIConfigured() {
 
 type Message = { role: "system" | "user" | "assistant"; content: string };
 
+const UNSUPPORTED_STRICT_KEYS = new Set(["$schema", "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"]);
+
+/** Removes JSON Schema keywords that OpenAI strict mode rejects. Zod adds them for .int() and the root. */
+function toStrictSchema(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(toStrictSchema);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !UNSUPPORTED_STRICT_KEYS.has(key))
+      .map(([key, child]) => [key, toStrictSchema(child)]),
+  );
+}
+
 export async function callJson<T extends z.ZodType>(name: string, schema: T, messages: Message[]): Promise<z.infer<T>> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -20,7 +33,7 @@ export async function callJson<T extends z.ZodType>(name: string, schema: T, mes
       messages,
       response_format: {
         type: "json_schema",
-        json_schema: { name, schema: z.toJSONSchema(schema), strict: false },
+        json_schema: { name, schema: toStrictSchema(z.toJSONSchema(schema)), strict: true },
       },
     }),
   });

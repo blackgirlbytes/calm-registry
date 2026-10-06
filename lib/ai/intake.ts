@@ -25,7 +25,21 @@ Rules:
 - When you have enough, set done=true, fill in profile, and reply with one encouraging sentence
   saying you're building their registry now.
 - preferredRetailers may only contain "amazon", "walmart", "target".
-- dueDate is ISO yyyy-mm-dd or null. Today is ${new Date().toISOString().slice(0, 10)}.`;
+- dueDate is ISO yyyy-mm-dd or null. Due dates are always in the future (within about 10 months).
+  If they only name a month, use the 15th of the NEXT time that month occurs after today.`;
+
+function systemPrompt() {
+  return `${SYSTEM_PROMPT}\nToday is ${new Date().toISOString().slice(0, 10)}.`;
+}
+
+/** Guards against the model picking a month that already passed this year. */
+function futureDueDate(dueDate: string | null) {
+  if (!dueDate || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return null;
+  const date = new Date(`${dueDate}T00:00:00Z`);
+  const today = new Date();
+  while (date.getTime() < today.getTime() - 24 * 3600 * 1000) date.setUTCFullYear(date.getUTCFullYear() + 1);
+  return date.toISOString().slice(0, 10);
+}
 
 export const OPENING: IntakeTurn = {
   reply:
@@ -37,7 +51,9 @@ export const OPENING: IntakeTurn = {
 
 export async function nextIntakeTurn(messages: ChatMessage[]): Promise<IntakeTurn> {
   if (!isOpenAIConfigured()) return mockIntakeTurn(messages);
-  return callJson("intake_turn", IntakeTurnSchema, [{ role: "system", content: SYSTEM_PROMPT }, ...messages]);
+  const turn = await callJson("intake_turn", IntakeTurnSchema, [{ role: "system", content: systemPrompt() }, ...messages]);
+  if (turn.profile) turn.profile = { ...turn.profile, dueDate: futureDueDate(turn.profile.dueDate) };
+  return turn;
 }
 
 // ---------------------------------------------------------------------------
