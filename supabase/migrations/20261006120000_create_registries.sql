@@ -328,12 +328,17 @@ security invoker
 set search_path = ''
 as $$
 begin
-  perform realtime.send(
-    jsonb_build_object('revision', new.revision),
-    'registry_changed',
-    'registry:' || new.slug,
-    false
-  );
+  -- A broadcast failure must never roll back the registry write that triggered it.
+  begin
+    perform realtime.send(
+      jsonb_build_object('revision', new.revision),
+      'registry_changed',
+      'registry:' || new.slug,
+      false
+    );
+  exception when others then
+    raise warning 'registry broadcast failed: %', sqlerrm;
+  end;
   return null;
 end;
 $$;

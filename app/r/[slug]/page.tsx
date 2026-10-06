@@ -22,17 +22,16 @@ export default function SharePage({ params }: { params: Promise<{ slug: string }
 
   useEffect(() => {
     void load();
+    // Poll even when realtime is available, so the page still updates if broadcasts are down.
+    const timer = setInterval(() => void load(), POLL_MS);
     const supabase = getBrowserSupabase();
-    if (!supabase) {
-      const timer = setInterval(() => void load(), POLL_MS);
-      return () => clearInterval(timer);
-    }
     const channel = supabase
-      .channel(`registry:${slug}`)
+      ?.channel(`registry:${slug}`)
       .on("broadcast", { event: "registry_changed" }, () => void load())
       .subscribe();
     return () => {
-      void supabase.removeChannel(channel);
+      clearInterval(timer);
+      if (supabase && channel) void supabase.removeChannel(channel);
     };
   }, [load, slug]);
 
