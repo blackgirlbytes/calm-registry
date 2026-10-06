@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+@theme {
+  --color-cream: #fbf7f2;
+  --color-sage: #7f9c86;
+  --color-sage-dark: #5d7a64;
+  --color-blush: #f2d6cf;
+  --color-ink: #3a3532;
+  --color-muted: #8a817b;
+  --font-sans: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-50;
+}
+@utility btn-primary {
+  @apply btn bg-sage text-white hover:bg-sage-dark;
+}
+@utility btn-ghost {
+  @apply btn border border-ink/15 bg-white text-ink hover:bg-white/70;
+}
+@utility card {
+  @apply rounded-3xl bg-white p-5 shadow-[0_2px_20px_rgba(58,53,50,0.06)];
+}
+@utility chip {
+  @apply rounded-full border border-sage/40 bg-white px-4 py-2 text-sm text-sage-dark transition hover:bg-sage hover:text-white;
+}
