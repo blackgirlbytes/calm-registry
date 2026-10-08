@@ -1,60 +1,45 @@
 import Link from "next/link";
-import { ProductPhoto } from "@/components/ProductPhoto";
-import { formatPrice } from "@/lib/format";
+import { KeepOrSkipDemo, type DemoItem } from "@/components/KeepOrSkipDemo";
 import { catalogExample } from "@/lib/retail/catalog";
-import { RETAILER_LABELS } from "@/lib/types";
 
-const EXAMPLES = [
-  { kind: "zip swaddle newborn", name: "Zip swaddle", reason: "Zips beat velcro and folding at 3am." },
-  { kind: "bassinet", name: "Bassinet", reason: "Keeps baby within arm's reach for the first months." },
-  { kind: "baby nasal aspirator", name: "Nasal aspirator", reason: "A stuffy newborn can't feed well. This clears it fast." },
+/** Real catalog products for the keep-or-skip demo, in the order a registry would show them. */
+const DEMO = [
+  { kind: "zip swaddle newborn", name: "Zip swaddle", category: "Sleep", priority: "Needed in the first weeks" },
+  { kind: "bassinet", name: "Bassinet", category: "Sleep", priority: "Needed in the first weeks" },
+  { kind: "ergonomic baby carrier", name: "Baby carrier", category: "On-the-go", priority: "Needed in the first weeks" },
+  { kind: "baby nasal aspirator", name: "Nasal aspirator", category: "Health", priority: "Needed in the first weeks" },
+  { kind: "baby bouncer", name: "Bouncer", category: "Play", priority: "Nice to have" },
 ];
 
 export default function Home() {
-  const examples = EXAMPLES.flatMap((example) => {
-    const offer = catalogExample(example.kind);
-    return offer ? [{ ...example, offer }] : [];
+  const demo: DemoItem[] = DEMO.flatMap(({ kind, ...item }) => {
+    const offer = catalogExample(kind);
+    return offer ? [{ ...item, offer }] : [];
   });
 
   return (
     <main className="pt-6 lg:pt-10">
-      <p className="font-serif text-[17px] font-semibold">Calm Registry</p>
-
-      <div className="mt-14 grid grid-cols-[minmax(0,1fr)] gap-16 lg:mt-20 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-center lg:gap-20">
-        <section className="space-y-6">
+      <div className="mt-6 grid grid-cols-[minmax(0,1fr)] gap-16 lg:mt-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-20">
+        <section className="space-y-6 lg:pt-16">
           <h1 className="max-w-[16ch] font-serif text-[41px] leading-[1.1] font-semibold sm:text-[52px] lg:text-[56px] lg:leading-[1.05] xl:text-[64px] 2xl:text-[76px]">
             A baby registry you can finish tonight
           </h1>
           <p className="max-w-[46ch] text-[17px] text-muted lg:text-[19px]">
-            Talk or type through a few questions. You get a complete registry of real products from Amazon, Target, and Walmart, with
-            a note on why each one is there. Then review it one category at a time.
+            Answer a few questions, out loud or by typing. Get a full list of real products from Amazon, Target, and Walmart,
+            then keep or skip each one.
           </p>
-          <Link href="/start" className="btn-primary w-full text-[17px] sm:w-auto sm:px-8">
-            Start my registry
-          </Link>
+          <div className="space-y-3">
+            <Link href="/start" className="btn-primary w-full text-[17px] sm:w-auto sm:px-8">
+              Start my registry
+            </Link>
+            <p className="text-[14px] text-muted">Free. Family and friends never need an account.</p>
+          </div>
         </section>
 
-        {examples.length > 0 && (
-          <section aria-labelledby="examples" className="space-y-5 lg:rounded-2xl lg:bg-surface lg:p-8">
-            <h2 id="examples" className="font-serif text-[21px] font-semibold">
-              Every item comes with a reason
-            </h2>
-            <ul className="space-y-6 md:grid md:grid-cols-3 md:gap-6 md:space-y-0 lg:block lg:space-y-6">
-              {examples.map(({ name, reason, offer }) => (
-                <li key={name} className="flex gap-4 md:flex-col lg:flex-row">
-                  <ProductPhoto offer={offer} label={name} className="h-24 w-24 md:aspect-square md:h-auto md:w-full lg:h-24 lg:w-24" />
-                  <div className="min-w-0 space-y-1">
-                    <p className="font-semibold">{name}</p>
-                    <p className="font-serif text-[15px] leading-snug text-note italic">{reason}</p>
-                    <p className="truncate text-[13px] text-muted">{offer.title}</p>
-                    <p className="text-[13px] text-muted tabular-nums">
-                      {formatPrice(offer.price)} at {RETAILER_LABELS[offer.retailer]}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
+        {demo.length > 0 && (
+          <div className="lg:mx-auto lg:w-full lg:max-w-[460px]">
+            <KeepOrSkipDemo items={demo} />
+          </div>
         )}
       </div>
 

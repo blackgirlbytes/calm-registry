@@ -17,7 +17,7 @@ function isPublic(pathname: string) {
 
 /**
  * The app frame: a collapsible sidebar listing your registries on laptops, and a top bar with a
- * menu drawer on phones. Signed-out visitors and the family share page get the page alone.
+ * menu drawer on phones. Signed-out visitors get just the name at the top; the family share page gets the page alone.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -46,7 +46,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const page = <div className="mx-auto min-h-dvh max-w-7xl px-4 pb-16 sm:px-6 lg:px-10 2xl:max-w-[1440px]">{children}</div>;
-  if (isPublic(pathname) || !signedIn) return page;
+  if (isPublic(pathname)) return page;
+  if (!signedIn) {
+    return (
+      <div className="mx-auto min-h-dvh max-w-7xl px-4 pb-16 sm:px-6 lg:px-10 2xl:max-w-[1440px]">
+        <header className="pt-5 lg:pt-8">
+          <Link href="/" className="font-serif text-[17px] font-semibold">
+            Calm Registry
+          </Link>
+        </header>
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className="lg:flex">

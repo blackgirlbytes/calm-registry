@@ -47,7 +47,6 @@ export function SignIn({ reason }: { reason?: string }) {
   return (
     <main className="grid min-h-dvh content-center gap-12 py-12 lg:grid-cols-2 lg:items-center lg:gap-24">
       <div className="space-y-6">
-        <p className="font-serif text-[17px] font-semibold">Calm Registry</p>
         <h1 className="font-serif text-[33px] leading-tight font-semibold lg:text-[52px] lg:leading-[1.08]">
           Save your registry
         </h1>
