@@ -1,0 +1,1 @@
+we could probably use supabase for the db similar to how Documents/work/girl-dinner does
