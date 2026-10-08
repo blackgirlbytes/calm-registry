@@ -4,6 +4,11 @@ A mobile-first baby registry that builds itself from a short chat. Parents answe
 tap-to-answer questions, get a full registry with products from Amazon, Walmart, and Target,
 review it one category at a time, edit it in plain language, and share a link with family.
 
+## Deepgram voice tutorials
+
+- [Build it step by step with code](docs/deepgram-build-tutorial.md)
+- [Build it with prompts for a coding agent](docs/deepgram-agent-prompts-tutorial.md)
+
 ## Run locally
 
 ```bash
