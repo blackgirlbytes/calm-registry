@@ -6,9 +6,6 @@ import { Status } from "./Status";
 
 export function AuthGate({ children, reason }: { children: React.ReactNode; reason?: string }) {
   const [state, setState] = useState<"loading" | "in" | "out">(authEnabled ? "loading" : "in");
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     const supabase = getBrowserSupabase();
@@ -20,11 +17,26 @@ export function AuthGate({ children, reason }: { children: React.ReactNode; reas
 
   if (state === "in") return <>{children}</>;
   if (state === "loading") return <Status>One moment…</Status>;
+  return <SignIn reason={reason} />;
+}
+
+const REASSURANCES = [
+  "We email you a one-time sign-in link.",
+  "Come back from any device, anytime.",
+  "Family and friends never need an account.",
+];
+
+export function SignIn({ reason }: { reason?: string }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   async function send(event: React.FormEvent) {
     event.preventDefault();
     setError("");
-    const { error } = await getBrowserSupabase()!.auth.signInWithOtp({
+    const supabase = getBrowserSupabase();
+    if (!supabase) return setError("Sign-in isn't set up for this site yet.");
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.href },
     });
@@ -33,35 +45,57 @@ export function AuthGate({ children, reason }: { children: React.ReactNode; reas
   }
 
   return (
-    <div className="mx-auto max-w-md space-y-5 pt-24">
-      <h2 className="font-serif text-[26px] font-semibold">Save your progress</h2>
-      <p className="text-muted">{reason ?? "We'll email you a sign-in link so you can come back anytime. No password needed."}</p>
-      {sent ? (
-        <p role="status" className="font-serif text-[17px] text-note italic">
-          Check your inbox for a sign-in link.
+    <main className="grid min-h-dvh content-center gap-12 py-12 lg:grid-cols-2 lg:items-center lg:gap-24">
+      <div className="space-y-6">
+        <p className="font-serif text-[17px] font-semibold">Calm Registry</p>
+        <h1 className="font-serif text-[33px] leading-tight font-semibold lg:text-[52px] lg:leading-[1.08]">
+          Save your registry
+        </h1>
+        <p className="max-w-[44ch] text-muted lg:text-[17px]">
+          {reason ?? "Sign in with your email so you can come back to your registry anytime. No password needed."}
         </p>
-      ) : (
-        <form onSubmit={send} className="space-y-3">
-          <label htmlFor="auth-email" className="sr-only">
-            Email
-          </label>
-          <input
-            id="auth-email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="field"
-          />
-          <button className="btn-primary w-full">Email me a link</button>
-          {error && (
-            <p role="alert" className="text-[13px] text-danger">
-              {error}
+        <ul className="hidden space-y-2 lg:block">
+          {REASSURANCES.map((line) => (
+            <li key={line} className="flex gap-3">
+              <span aria-hidden className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+              {line}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="rounded-2xl bg-surface p-6 lg:p-10">
+        {sent ? (
+          <div role="status" className="space-y-2">
+            <p className="font-serif text-[21px] font-semibold">Check your inbox</p>
+            <p className="text-muted">
+              We sent a sign-in link to <span className="text-text">{email}</span>. Open it on this device to pick up where
+              you left off.
             </p>
-          )}
-        </form>
-      )}
-    </div>
+          </div>
+        ) : (
+          <form onSubmit={send} className="space-y-4">
+            <label htmlFor="auth-email" className="block font-semibold">
+              Your email
+            </label>
+            <input
+              id="auth-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="field lg:py-4 lg:text-[17px]"
+            />
+            <button className="btn-primary w-full lg:py-4 lg:text-[17px]">Email me a link</button>
+            {error && (
+              <p role="alert" className="text-[13px] text-danger">
+                {error}
+              </p>
+            )}
+          </form>
+        )}
+      </div>
+    </main>
   );
 }

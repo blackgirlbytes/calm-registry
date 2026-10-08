@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useMemo, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { ItemCard } from "@/components/ItemCard";
+import { ProductPhoto } from "@/components/ProductPhoto";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
 import { CATEGORIES, type Category } from "@/lib/types";
@@ -70,16 +71,16 @@ function Review({ id }: { id: string }) {
 
   if (active) {
     return (
-      <main className="mx-auto max-w-5xl space-y-5">
+      <main className="space-y-5">
         {header}
-        <div className="flex items-baseline justify-between">
-          <h1 className="font-serif text-[21px] font-semibold">{active.category}</h1>
-          {current && (
+        {current && (
+          <div className="flex items-baseline justify-between">
+            <h1 className="font-serif text-[21px] font-semibold">{active.category}</h1>
             <span className="text-[13px] text-muted tabular-nums">
               {active.items.length - active.pending.length + 1} of {active.items.length}
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {current ? (
           <ItemCard key={current.id} item={current} onChooseOffer={(offerId) => void setPrimary(current.id, offerId)}>
@@ -93,15 +94,26 @@ function Review({ id }: { id: string }) {
             </div>
           </ItemCard>
         ) : (
-          <div className="max-w-xl space-y-6 pt-10">
+          <div className="space-y-8 pt-6 lg:pt-10">
             <div className="space-y-2">
-              <h2 className="font-serif text-[26px] font-semibold">{active.category} is reviewed.</h2>
-              <p className="text-muted">
-                You kept {active.items.length - registry.items.filter((i) => i.category === active.category && i.status === "skip").length}{" "}
-                of {active.items.length} items.
+              <h1 className="font-serif text-[26px] font-semibold lg:text-[41px]">{active.category} is reviewed.</h1>
+              <p className="text-muted lg:text-[17px]">
+                You kept {active.items.filter((i) => i.status === "keep").length} of {active.items.length} items.
               </p>
             </div>
-            <NextStep groups={groups} onPick={setCategory} id={id} />
+            <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 lg:gap-5">
+              {active.items
+                .filter((i) => i.status === "keep")
+                .map((item) => (
+                  <li key={item.id} className="space-y-2">
+                    <ProductPhoto offer={item.offers[0]} label={item.name} className="aspect-square w-full" />
+                    <p className="truncate text-[13px]">{item.name}</p>
+                  </li>
+                ))}
+            </ul>
+            <div className="sm:max-w-sm">
+              <NextStep groups={groups} onPick={setCategory} id={id} />
+            </div>
           </div>
         )}
       </main>
@@ -109,11 +121,11 @@ function Review({ id }: { id: string }) {
   }
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6">
+    <main className="space-y-8">
       {header}
       <div className="space-y-3">
-        <h1 className="font-serif text-[33px] leading-tight font-semibold">{registry.title}</h1>
-        <p className="max-w-[60ch] text-muted">
+        <h1 className="font-serif text-[33px] leading-tight font-semibold lg:text-[48px]">{registry.title}</h1>
+        <p className="max-w-[60ch] text-muted lg:text-[17px]">
           Your full draft is ready. Go through it one category at a time, in any order. Stop whenever you like, your
           progress is saved.
         </p>
@@ -127,10 +139,22 @@ function Review({ id }: { id: string }) {
             <li key={g.category} className="border-b border-line">
               <button
                 onClick={() => setCategory(g.category)}
-                className="flex w-full items-center justify-between gap-4 py-4 text-left transition-colors hover:text-accent"
+                className="group flex w-full items-center justify-between gap-6 py-4 text-left lg:py-5"
               >
-                <span className="font-serif text-[21px]">{g.category}</span>
-                <span className="text-[13px] text-muted tabular-nums">
+                <span className="font-serif text-[21px] transition-colors group-hover:text-accent lg:w-48 lg:shrink-0 lg:text-[26px]">
+                  {g.category}
+                </span>
+                <span className="hidden flex-1 gap-3 lg:flex" aria-hidden>
+                  {g.items.slice(0, 7).map((item) => (
+                    <ProductPhoto
+                      key={item.id}
+                      offer={item.offers[0]}
+                      label=""
+                      className={`h-16 w-16 rounded-[10px] ${item.status === "skip" ? "opacity-30" : ""}`}
+                    />
+                  ))}
+                </span>
+                <span className="shrink-0 text-[13px] text-muted tabular-nums lg:text-[14px]">
                   {done ? "Reviewed" : `${g.pending.length} to review, about ${minutes} min`}
                 </span>
               </button>
@@ -140,7 +164,7 @@ function Review({ id }: { id: string }) {
       </ul>
 
       {progress === 1 && (
-        <Link href={`/registry/${id}`} className="btn-primary w-full">
+        <Link href={`/registry/${id}`} className="btn-primary w-full sm:w-auto sm:px-8">
           See and share your registry
         </Link>
       )}
