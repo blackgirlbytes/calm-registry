@@ -27,6 +27,8 @@ export type Priority = (typeof PRIORITIES)[number];
 export type ItemStatus = "pending" | "keep" | "skip";
 
 export const ParentProfileSchema = z.object({
+  parentNames: z.string().describe("Parents' first names as they'd like them shown, e.g. 'Maya and Jordan'. Empty if not shared."),
+  babyName: z.string().describe("Baby's name or nickname if picked. Empty if not decided or not shared."),
   dueDate: z.string().nullable(),
   home: z.enum(["apartment", "house", "unknown"]),
   hasCar: z.boolean().nullable(),
@@ -80,11 +82,51 @@ export type Registry = {
   slug: string;
   ownerId: string;
   title: string;
+  parentNames: string;
+  babyName: string;
+  familyNote: string;
+  /** Whether a private shipping address is on file. The address itself is never part of Registry. */
+  hasAddress: boolean;
   profile: ParentProfile;
   preferredRetailers: RetailerId[];
   dueDate: string | null;
   revision: number;
   items: RegistryItem[];
+};
+
+export const DetailsSchema = z.object({
+  title: z.string().trim().min(1).max(80),
+  parentNames: z.string().trim().max(80),
+  babyName: z.string().trim().max(40),
+  familyNote: z.string().trim().max(500),
+});
+export type RegistryDetails = z.infer<typeof DetailsSchema>;
+
+export const AddressSchema = z.object({
+  recipient: z.string().trim().min(1).max(80),
+  line1: z.string().trim().min(1).max(120),
+  line2: z.string().trim().max(120),
+  city: z.string().trim().min(1).max(80),
+  region: z.string().trim().max(80),
+  postalCode: z.string().trim().max(20),
+  country: z.string().trim().max(60),
+});
+export type ShippingAddress = z.infer<typeof AddressSchema>;
+
+export const AddressRequestInputSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  contact: z.string().trim().min(3).max(120),
+  message: z.string().trim().max(300),
+});
+
+export type AddressRequestStatus = "pending" | "approved" | "declined";
+export type AddressRequest = {
+  id: string;
+  name: string;
+  contact: string;
+  message: string;
+  status: AddressRequestStatus;
+  createdAt: string;
 };
 
 export type ChatMessage = { role: "assistant" | "user"; content: string };

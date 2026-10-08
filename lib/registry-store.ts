@@ -3,14 +3,20 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
+  AddressRequest,
+  AddressRequestStatus,
   GeneratedItem,
   ItemStatus,
   Offer,
   ParentProfile,
   Registry,
+  RegistryDetails,
   RegistryItem,
   RetailerId,
+  ShippingAddress,
 } from "./types";
+
+export type AddressRequestInput = { name: string; contact: string; message: string };
 
 export type NewItem = GeneratedItem & { offers: Offer[] };
 export type OfferSwap = { itemId: string; searchQuery: string; reason: string; offers: Offer[] };
@@ -28,6 +34,9 @@ function friendlyError(message: string | undefined) {
   if (message?.includes("REGISTRY_NOT_FOUND")) return "Registry not found.";
   if (message?.includes("ITEM_NOT_FOUND")) return "That item is not on this registry.";
   if (message?.includes("ALREADY_PURCHASED")) return "Someone already bought this one.";
+  if (message?.includes("NO_ADDRESS")) return "The parents haven't added a shipping address yet.";
+  if (message?.includes("TOO_MANY_REQUESTS")) return "The parents have a lot of requests waiting. Try reaching them directly.";
+  if (message?.includes("REQUEST_NOT_FOUND")) return "That request no longer exists.";
   return "The registry could not be updated.";
 }
 
@@ -91,6 +100,10 @@ type RegistryRow = {
   slug: string;
   owner_id: string;
   title: string;
+  parent_names: string;
+  baby_name: string;
+  family_note: string;
+  registry_addresses: { registry_id: string } | Array<{ registry_id: string }> | null;
   profile: ParentProfile;
   preferred_retailers: RetailerId[];
   due_date: string | null;
@@ -99,7 +112,29 @@ type RegistryRow = {
 };
 
 const REGISTRY_SELECT =
-  "id, slug, owner_id, title, profile, preferred_retailers, due_date, revision, registry_items(id, name, category, priority, reason, qty, status, position, search_query, item_offers(*), purchases(buyer_name, retailer))";
+  "id, slug, owner_id, title, parent_names, baby_name, family_note, profile, preferred_retailers, due_date, revision, registry_addresses(registry_id), registry_items(id, name, category, priority, reason, qty, status, position, search_query, item_offers(*), purchases(buyer_name, retailer))";
+
+type AddressRequestRow = {
+  id: string;
+  requester_name: string;
+  contact: string;
+  message: string;
+  status: AddressRequestStatus;
+  created_at: string;
+};
+
+function toAddressRequest(row: AddressRequestRow): AddressRequest {
+  return {
+    id: row.id,
+    name: row.requester_name,
+    contact: row.contact,
+    message: row.message,
+    status: row.status,
+    createdAt: row.created_at,
+  };
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function toRegistry(row: RegistryRow): Registry {
   const items = [...row.registry_items]
@@ -138,6 +173,10 @@ function toRegistry(row: RegistryRow): Registry {
     slug: row.slug,
     ownerId: row.owner_id,
     title: row.title,
+    parentNames: row.parent_names ?? "",
+    babyName: row.baby_name ?? "",
+    familyNote: row.family_note ?? "",
+    hasAddress: Array.isArray(row.registry_addresses) ? row.registry_addresses.length > 0 : Boolean(row.registry_addresses),
     profile: row.profile,
     preferredRetailers: row.preferred_retailers,
     dueDate: row.due_date,
@@ -154,6 +193,8 @@ const supabaseStore = {
           p_owner_id: input.ownerId,
           p_slug: makeSlug(input.title),
           p_title: input.title,
+          p_parent_names: input.profile.parentNames ?? "",
+          p_baby_name: input.profile.babyName ?? "",
           p_profile: input.profile,
           p_preferred_retailers: input.profile.preferredRetailers,
           p_due_date: input.profile.dueDate,
@@ -229,6 +270,82 @@ const supabaseStore = {
       p_retailer: retailer,
     });
   },
+
+  async updateDetails(registryId: string, ownerId: string, details: RegistryDetails) {
+    await this.rpc("registry_update_details", {
+      p_registry_id: registryId,
+      p_owner_id: ownerId,
+      p_title: details.title,
+      p_parent_names: details.parentNames,
+      p_baby_name: details.babyName,
+      p_family_note: details.familyNote,
+    });
+  },
+
+  /** Callers must check ownership first. */
+  async getAddress(registryId: string): Promise<ShippingAddress | null> {
+    const { data, error } = await getSupabaseAdmin()
+      .from("registry_addresses")
+      .select("address")
+      .eq("registry_id", registryId)
+      .maybeSingle();
+    if (error) throw new RegistryError(friendlyError(error.message));
+    return (data?.address as ShippingAddress | undefined) ?? null;
+  },
+
+  async setAddress(registryId: string, ownerId: string, address: ShippingAddress | null) {
+    await this.rpc("registry_set_address", { p_registry_id: registryId, p_owner_id: ownerId, p_address: address });
+  },
+
+  /** Callers must check ownership first. */
+  async listAddressRequests(registryId: string): Promise<AddressRequest[]> {
+    const { data, error } = await getSupabaseAdmin()
+      .from("address_requests")
+      .select("id, requester_name, contact, message, status, created_at")
+      .eq("registry_id", registryId)
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new RegistryError(friendlyError(error.message));
+    return ((data ?? []) as AddressRequestRow[]).map(toAddressRequest);
+  },
+
+  async createAddressRequest(slug: string, input: AddressRequestInput, tokenHash: string): Promise<string> {
+    const { data, error } = await getSupabaseAdmin().rpc("address_request_create", {
+      p_slug: slug,
+      p_name: input.name,
+      p_contact: input.contact,
+      p_message: input.message,
+      p_token_hash: tokenHash,
+    });
+    if (error) throw new RegistryError(friendlyError(error.message));
+    return data as string;
+  },
+
+  async decideAddressRequest(registryId: string, ownerId: string, requestId: string, status: "approved" | "declined") {
+    await this.rpc("address_request_decide", {
+      p_registry_id: registryId,
+      p_owner_id: ownerId,
+      p_request_id: requestId,
+      p_status: status,
+    });
+  },
+
+  /** What a requester may see: their request's status, plus the address once approved. */
+  async getRequestForRequester(slug: string, requestId: string, tokenHash: string) {
+    if (!UUID.test(requestId)) return null;
+    const { data, error } = await getSupabaseAdmin()
+      .from("address_requests")
+      .select("status, registry_id, registries!inner(slug)")
+      .eq("id", requestId)
+      .eq("token_hash", tokenHash)
+      .eq("registries.slug", slug)
+      .maybeSingle();
+    if (error) throw new RegistryError(friendlyError(error.message));
+    if (!data) return null;
+    const status = data.status as AddressRequestStatus;
+    const address = status === "approved" ? await this.getAddress(data.registry_id as string) : null;
+    return { status, address };
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -238,11 +355,49 @@ const supabaseStore = {
 const LOCAL_FILE = path.join(process.cwd(), ".data", "registries.json");
 
 async function readLocal(): Promise<Registry[]> {
+  let registries: Registry[];
   try {
-    return JSON.parse(await fs.readFile(LOCAL_FILE, "utf8")) as Registry[];
+    registries = JSON.parse(await fs.readFile(LOCAL_FILE, "utf8")) as Registry[];
   } catch {
     return [];
   }
+  const { addresses } = await readPrivate();
+  // Registries saved before names and addresses existed lack these fields.
+  return registries.map((r) => ({
+    ...r,
+    parentNames: r.parentNames ?? "",
+    babyName: r.babyName ?? "",
+    familyNote: r.familyNote ?? "",
+    hasAddress: Boolean(addresses[r.id]),
+  }));
+}
+
+// Addresses and requests live apart from registries, mirroring the private Supabase tables.
+const PRIVATE_FILE = path.join(process.cwd(), ".data", "private.json");
+type LocalRequest = AddressRequest & { registryId: string; tokenHash: string };
+type PrivateData = { addresses: Record<string, ShippingAddress>; requests: LocalRequest[] };
+
+async function readPrivate(): Promise<PrivateData> {
+  try {
+    return JSON.parse(await fs.readFile(PRIVATE_FILE, "utf8")) as PrivateData;
+  } catch {
+    return { addresses: {}, requests: [] };
+  }
+}
+
+async function writePrivate(data: PrivateData) {
+  await fs.mkdir(path.dirname(PRIVATE_FILE), { recursive: true });
+  await fs.writeFile(PRIVATE_FILE, JSON.stringify(data, null, 2));
+}
+
+async function requireOwnedLocal(registryId: string, ownerId: string) {
+  const registry = (await readLocal()).find((r) => r.id === registryId && r.ownerId === ownerId);
+  if (!registry) throw new RegistryError("Registry not found.");
+  return registry;
+}
+
+function publicRequest({ registryId: _r, tokenHash: _t, ...request }: LocalRequest): AddressRequest {
+  return request;
 }
 
 async function writeLocal(registries: Registry[]) {
@@ -289,6 +444,10 @@ const localStore: typeof supabaseStore = {
       slug: makeSlug(input.title),
       ownerId: input.ownerId,
       title: input.title,
+      parentNames: input.profile.parentNames ?? "",
+      babyName: input.profile.babyName ?? "",
+      familyNote: "",
+      hasAddress: false,
       profile: input.profile,
       preferredRetailers: input.profile.preferredRetailers,
       dueDate: input.profile.dueDate,
@@ -350,6 +509,61 @@ const localStore: typeof supabaseStore = {
     item.purchased = { buyerName: buyerName?.trim() || null, retailer };
     registry.revision += 1;
     await writeLocal(all);
+  },
+  async updateDetails(registryId, ownerId, details) {
+    await mutateLocal(registryId, ownerId, (r) => Object.assign(r, details));
+  },
+  async getAddress(registryId) {
+    return (await readPrivate()).addresses[registryId] ?? null;
+  },
+  async setAddress(registryId, ownerId, address) {
+    await requireOwnedLocal(registryId, ownerId);
+    const data = await readPrivate();
+    if (address) data.addresses[registryId] = address;
+    else delete data.addresses[registryId];
+    await writePrivate(data);
+    await mutateLocal(registryId, ownerId, () => undefined);
+  },
+  async listAddressRequests(registryId) {
+    return (await readPrivate()).requests
+      .filter((q) => q.registryId === registryId)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map(publicRequest);
+  },
+  async createAddressRequest(slug, input, tokenHash) {
+    const registry = (await readLocal()).find((r) => r.slug === slug);
+    if (!registry) throw new RegistryError("Registry not found.");
+    const data = await readPrivate();
+    if (!data.addresses[registry.id]) throw new RegistryError(friendlyError("NO_ADDRESS"));
+    if (data.requests.filter((q) => q.registryId === registry.id && q.status === "pending").length >= 50) {
+      throw new RegistryError(friendlyError("TOO_MANY_REQUESTS"));
+    }
+    const request: LocalRequest = {
+      id: crypto.randomUUID(),
+      registryId: registry.id,
+      tokenHash,
+      ...input,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+    };
+    data.requests.push(request);
+    await writePrivate(data);
+    return request.id;
+  },
+  async decideAddressRequest(registryId, ownerId, requestId, status) {
+    await requireOwnedLocal(registryId, ownerId);
+    const data = await readPrivate();
+    const request = data.requests.find((q) => q.id === requestId && q.registryId === registryId);
+    if (!request) throw new RegistryError(friendlyError("REQUEST_NOT_FOUND"));
+    request.status = status;
+    await writePrivate(data);
+  },
+  async getRequestForRequester(slug, requestId, tokenHash) {
+    const registry = (await readLocal()).find((r) => r.slug === slug);
+    const data = await readPrivate();
+    const request = data.requests.find((q) => q.id === requestId && q.tokenHash === tokenHash && q.registryId === registry?.id);
+    if (!request) return null;
+    return { status: request.status, address: request.status === "approved" ? (data.addresses[request.registryId] ?? null) : null };
   },
 };
 

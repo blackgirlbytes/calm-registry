@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useCallback, useEffect, useState } from "react";
+import { AddressAsk } from "@/components/AddressAsk";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { Status } from "@/components/Status";
 import { formatPrice, getBrowserSupabase } from "@/lib/client";
@@ -60,10 +61,18 @@ function Gifts({ slug }: { slug: string }) {
             `Due ${new Date(registry.dueDate + "T00:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" })}. `}
           {gifted.length} of {registry.items.length} gifted so far.
         </p>
+        {registry.familyNote && (
+          <p className="max-w-[52ch] font-serif text-[17px] leading-relaxed whitespace-pre-line">
+            {registry.familyNote}
+            {registry.parentNames && <span className="mt-1 block text-muted not-italic">{registry.parentNames}</span>}
+          </p>
+        )}
         <p className="max-w-[52ch] font-serif text-[17px] leading-relaxed text-note italic">
           Buy from any store you like. When you do, mark it here so nobody else buys the same thing.
         </p>
       </header>
+
+      {registry.hasAddress && <AddressAsk slug={slug} who={registry.parentNames || "the parents"} />}
 
       {CATEGORIES.map((category) => {
         const items = open.filter((i) => i.category === category);

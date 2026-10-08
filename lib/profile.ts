@@ -10,6 +10,27 @@ export function futureDueDate(dueDate: string | null) {
   return date.toISOString().slice(0, 10);
 }
 
+/** Models sometimes write "[Last Name]" or "N/A" when they don't know a name. */
+function cleanName(value: string | undefined) {
+  const name = (value ?? "").trim().replace(/\s+/g, " ");
+  if (!name || /[[\]{}<>]|^(n\/?a|none|unknown|not sure|skip|tbd|undecided|not decided( yet)?)$/i.test(name)) return "";
+  return name.slice(0, 80);
+}
+
 export function normalizeProfile(profile: ParentProfile): ParentProfile {
-  return { ...profile, dueDate: futureDueDate(profile.dueDate) };
+  return {
+    ...profile,
+    parentNames: cleanName(profile.parentNames),
+    babyName: cleanName(profile.babyName).slice(0, 40),
+    dueDate: futureDueDate(profile.dueDate),
+  };
+}
+
+/** Built from what the parent told us, so it never contains placeholders. Parents can rename it. */
+export function registryTitle(profile: Pick<ParentProfile, "parentNames" | "babyName">) {
+  const baby = cleanName(profile.babyName);
+  const parents = cleanName(profile.parentNames);
+  if (baby) return `${baby}'s registry`;
+  if (parents) return `${parents}'s baby registry`;
+  return "Our baby registry";
 }

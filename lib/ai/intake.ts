@@ -15,7 +15,8 @@ export type IntakeTurn = z.infer<typeof IntakeTurnSchema>;
 
 function systemPrompt() {
   return `${INTAKE_GUIDANCE}
-- Always offer 2-5 tap-to-answer chips matching your question.
+- Offer 1-5 tap-to-answer chips matching your question. Each chip is sent as their answer, so it must read as one.
+  For the names question, use only chips like "Skip for now" and "No baby name yet"; they'll type the names.
 - When you have enough, set done=true, fill in profile, and reply with one encouraging sentence
   saying you're building their registry now.
 ${todayLine()}`;
@@ -41,7 +42,11 @@ export async function nextIntakeTurn(messages: ChatMessage[]): Promise<IntakeTur
 
 const SCRIPT: Array<Omit<IntakeTurn, "done" | "profile">> = [
   OPENING,
-  { reply: "Lovely. Do you live in an apartment or a house?", chips: ["Apartment", "House", "Something else"] },
+  {
+    reply: "Lovely. What should family call you? And if you've picked a name for baby, I'd love to hear it, but that's optional.",
+    chips: ["Skip for now"],
+  },
+  { reply: "Thank you. Do you live in an apartment or a house?", chips: ["Apartment", "House", "Something else"] },
   { reply: "Got it. Will you be driving with baby much?", chips: ["Yes, we drive", "Mostly walk / transit", "A bit of both"] },
   { reply: "How are you thinking about feeding? Totally fine to not know yet.", chips: ["Breastfeeding", "Formula", "A mix", "Not sure"] },
   { reply: "What budget feels comfortable for the registry overall?", chips: ["Keep it lean", "Moderate", "Generous"] },
@@ -66,21 +71,25 @@ function dueDateFrom(answer: string) {
 export function mockProfile(messages: ChatMessage[]): ParentProfile {
   const a = answers(messages);
   const at = (i: number) => a[i] ?? "";
-  const stores: RetailerId[] = (["amazon", "walmart", "target"] as const).filter((s) => at(7).includes(s));
-  const haves = ["crib", "stroller", "car seat", "bassinet", "high chair", "bouncer"].filter((h) => at(5).includes(h));
-  const values = ["eco", "minimal", "gender-neutral"].filter((v) => at(6).includes(v));
+  const rawNames = messages.filter((m) => m.role === "user")[1]?.content.trim() ?? "";
+  const [parentPart, babyPart] = rawNames.split(/[,.;]\s*(?:and\s+)?(?:the\s+)?baby(?:'s name)?(?:\s+is|\s+will be)?\s*/i);
+  const stores: RetailerId[] = (["amazon", "walmart", "target"] as const).filter((s) => at(8).includes(s));
+  const haves = ["crib", "stroller", "car seat", "bassinet", "high chair", "bouncer"].filter((h) => at(6).includes(h));
+  const values = ["eco", "minimal", "gender-neutral"].filter((v) => at(7).includes(v));
   return {
+    parentNames: /^skip/i.test(rawNames) ? "" : (parentPart ?? "").replace(/^(we're|we are|i'm|i am)\s+/i, ""),
+    babyName: babyPart?.trim() ?? "",
     dueDate: dueDateFrom(at(0)),
-    home: at(1).includes("apartment") ? "apartment" : at(1).includes("house") ? "house" : "unknown",
-    hasCar: at(2).includes("walk") || at(2).includes("transit") ? false : at(2) ? true : null,
-    feeding: at(3).includes("mix") || at(3).includes("both")
+    home: at(2).includes("apartment") ? "apartment" : at(2).includes("house") ? "house" : "unknown",
+    hasCar: at(3).includes("walk") || at(3).includes("transit") ? false : at(3) ? true : null,
+    feeding: at(4).includes("mix") || at(4).includes("both")
       ? "both"
-      : at(3).includes("breast")
+      : at(4).includes("breast")
         ? "breast"
-        : at(3).includes("formula")
+        : at(4).includes("formula")
           ? "formula"
           : "unsure",
-    budget: at(4).includes("lean") ? "lean" : at(4).includes("generous") ? "generous" : "moderate",
+    budget: at(5).includes("lean") ? "lean" : at(5).includes("generous") ? "generous" : "moderate",
     values,
     alreadyHave: haves,
     preferredRetailers: stores,
@@ -95,7 +104,7 @@ function mockIntakeTurn(messages: ChatMessage[]): IntakeTurn {
       reply: "Thank you, that's everything I need. Building your registry now. Take a breath, I've got this part.",
       chips: [],
       done: true,
-      profile: mockProfile(messages),
+      profile: normalizeProfile(mockProfile(messages)),
     };
   }
   return { ...SCRIPT[answered], done: false, profile: null };

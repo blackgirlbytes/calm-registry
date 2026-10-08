@@ -2,10 +2,10 @@ import "server-only";
 import { z } from "zod";
 import { GeneratedItemSchema, type GeneratedItem, type ParentProfile } from "../types";
 import { CATALOG_QUERY_RULE } from "../retail/catalog";
+import { registryTitle } from "../profile";
 import { callJson, isOpenAIConfigured } from "./openai";
 
 const GeneratedRegistrySchema = z.object({
-  title: z.string().describe("A short, warm registry title, e.g. 'Baby Rivera's Registry'"),
   items: z.array(GeneratedItemSchema),
 });
 
@@ -22,11 +22,13 @@ ${CATALOG_QUERY_RULE}
 - Never include unsafe sleep items (bumpers, positioners, weighted sleep sacks, inclined sleepers).`;
 
 export async function generateRegistry(profile: ParentProfile): Promise<{ title: string; items: GeneratedItem[] }> {
-  if (!isOpenAIConfigured()) return { title: "Our Baby Registry", items: mockItems(profile) };
-  return callJson("registry", GeneratedRegistrySchema, [
+  const title = registryTitle(profile);
+  if (!isOpenAIConfigured()) return { title, items: mockItems(profile) };
+  const { items } = await callJson("registry", GeneratedRegistrySchema, [
     { role: "system", content: SYSTEM_PROMPT },
     { role: "user", content: JSON.stringify(profile) },
   ]);
+  return { title, items };
 }
 
 type Template = GeneratedItem & { when?: (p: ParentProfile) => boolean; skipIfHave?: string };

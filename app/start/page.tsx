@@ -38,7 +38,8 @@ function IntakeChat() {
     },
     async onFunction(name, args) {
       if (name !== "finish_intake") return `Unknown function ${name}.`;
-      const parsed = ParentProfileSchema.safeParse(args);
+      // Names are optional, so a missing one shouldn't send the agent back to ask again.
+      const parsed = ParentProfileSchema.safeParse({ parentNames: "", babyName: "", ...args });
       if (!parsed.success) {
         const fields = [...new Set(parsed.error.issues.map((i) => i.path.join(".") || "profile"))].join(", ");
         return `The profile isn't complete. Problems with: ${fields}. Ask about those, then call finish_intake again.`;
@@ -128,7 +129,7 @@ function IntakeChat() {
     <div className="flex min-h-dvh flex-col pt-5 lg:pt-10">
       <header className="mb-8 flex items-center justify-between text-[13px]">
         <span className="text-muted">
-          {8 - answered > 1 ? `About ${8 - answered} questions left` : "Almost done"}
+          {9 - answered > 1 ? `About ${9 - answered} questions left` : "Almost done"}
         </span>
         <button onClick={restart} className="link">
           Start over

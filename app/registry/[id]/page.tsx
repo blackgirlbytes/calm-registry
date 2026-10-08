@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useRef, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { ProductPhoto } from "@/components/ProductPhoto";
+import { RegistryDetails } from "@/components/RegistryDetails";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
 import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
@@ -48,6 +49,8 @@ function Overview({ id }: { id: string }) {
             {purchased > 0 ? `${purchased} gifted so far.` : "Nothing gifted yet."}
           </p>
         </header>
+
+        <RegistryDetails registry={registry} onSaved={reload} />
 
         {pending > 0 && (
           <div className="flex items-center justify-between gap-4 rounded-xl bg-surface px-5 py-4">
