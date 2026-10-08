@@ -42,9 +42,6 @@ function Overview({ id }: { id: string }) {
     <main className="pt-6 pb-36 lg:grid lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-16 lg:pt-10 lg:pb-16">
       <aside className="space-y-8 lg:sticky lg:top-10 lg:max-h-[calc(100dvh-2.5rem)] lg:self-start lg:overflow-y-auto lg:pb-10">
         <header className="space-y-3">
-          <Link href="/" className="link text-[13px]">
-            Calm Registry
-          </Link>
           <h1 className="font-serif text-[33px] leading-tight font-semibold">{registry.title}</h1>
           <p className="text-muted">
             {kept.length} items, about {money(total)} in all.{" "}
@@ -414,6 +411,9 @@ function RegistrySettings({ registry, onSaved }: { registry: Registry; onSaved: 
           {reviewing && <ShareLine slug={registry.slug} />}
           <YourAnswers registry={registry} onSaved={onSaved} />
           <div className="flex flex-col items-start gap-3 border-t border-line pt-5">
+            <Link href={`/start?from=${registry.id}`} className="link text-[13px]">
+              Start a new registry using these answers
+            </Link>
             <StartOverLink registry={registry} />
             <DeleteRegistry registry={registry} />
           </div>

@@ -16,6 +16,9 @@ export function getBrowserSupabase() {
 
 export const authEnabled = Boolean(url && anonKey);
 
+/** Fired after anything that changes which registries or drafts exist, or their titles, so navigation can refresh. */
+export const REGISTRIES_CHANGED = "calm-registry:registries-changed";
+
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("content-type", "application/json");
@@ -27,6 +30,10 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, { ...init, headers });
   const json = (await response.json().catch(() => ({}))) as T & { error?: string };
   if (!response.ok) throw new Error(json.error ?? "Something went wrong.");
+  const method = (init.method ?? "GET").toUpperCase();
+  // Draft autosaves (PUT) happen constantly and never change the list.
+  const listChanged = /^\/api\/(registries|drafts)/.test(path) && method !== "GET" && !(method === "PUT" && path.startsWith("/api/drafts/"));
+  if (listChanged) window.dispatchEvent(new Event(REGISTRIES_CHANGED));
   return json;
 }
 

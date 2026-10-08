@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, Literata } from "next/font/google";
+import { AppShell } from "@/components/AppShell";
 import "./globals.css";
 
 const literata = Literata({ subsets: ["latin"], variable: "--font-literata", display: "swap" });
@@ -20,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${literata.variable} ${hanken.variable}`}>
       <body className="min-h-dvh font-sans antialiased">
-        <div className="mx-auto min-h-dvh max-w-7xl px-4 pb-16 sm:px-6 lg:px-10 2xl:max-w-[1440px]">{children}</div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

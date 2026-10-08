@@ -18,7 +18,7 @@ export function ItemCard({
   const [primary, ...alternatives] = item.offers;
   return (
     <article className="md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start md:gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-12">
-      <ProductPhoto offer={primary} label={item.name} trueColor className="aspect-[4/3] w-full md:sticky md:top-28 md:aspect-square" />
+      <ProductPhoto offer={primary} label={item.name} className="aspect-[4/3] w-full md:sticky md:top-28 md:aspect-square" />
 
       <div className="mt-6 space-y-4 md:mt-0">
         <div className="space-y-1">
@@ -59,7 +59,7 @@ export function ItemCard({
                     className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-raise"
                     onClick={() => onChooseOffer(offer.id)}
                   >
-                    <ProductPhoto offer={offer} label="" trueColor className="h-14 w-14 rounded-[12px]" />
+                    <ProductPhoto offer={offer} label="" className="h-14 w-14 rounded-[12px]" />
                     <span className="min-w-0 flex-1 line-clamp-2 text-[15px] leading-snug">{offer.title}</span>
                     <span className="shrink-0 text-right text-[14px] text-muted tabular-nums">
                       {offer.price !== null && `${formatPrice(offer.price)} `}
