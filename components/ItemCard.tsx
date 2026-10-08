@@ -3,6 +3,7 @@
 import { formatPrice, PRIORITY_LABELS } from "@/lib/client";
 import { RETAILER_LABELS, type RegistryItem } from "@/lib/types";
 import { ProductPhoto } from "./ProductPhoto";
+import { ProductRating } from "./ProductRating";
 
 /** One item, shown large: used while reviewing the draft. */
 export function ItemCard({
@@ -31,20 +32,23 @@ export function ItemCard({
         <p className="font-serif text-[17px] leading-relaxed text-note italic">{item.reason}</p>
 
         {primary && (
-          <a
-            href={primary.url}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            className="flex items-center justify-between gap-4 rounded-xl border border-line px-4 py-3 transition-colors hover:bg-raise"
-          >
-            <span className="min-w-0">
-              <span className="line-clamp-2 text-[14px] leading-snug">{primary.title}</span>
-              {primary.price !== null && <span className="text-[13px] text-muted">{RETAILER_LABELS[primary.retailer]}</span>}
-            </span>
-            {primary.price !== null && (
-              <span className="shrink-0 text-[17px] font-semibold tabular-nums">{formatPrice(primary.price)}</span>
-            )}
-          </a>
+          <div className="space-y-2">
+            <a
+              href={primary.url}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              className="flex items-center justify-between gap-4 rounded-xl border border-line px-4 py-3 transition-colors hover:bg-raise"
+            >
+              <span className="min-w-0">
+                <span className="line-clamp-2 text-[14px] leading-snug">{primary.title}</span>
+                {primary.price !== null && <span className="text-[13px] text-muted">{RETAILER_LABELS[primary.retailer]}</span>}
+              </span>
+              {primary.price !== null && (
+                <span className="shrink-0 text-[17px] font-semibold tabular-nums">{formatPrice(primary.price)}</span>
+              )}
+            </a>
+            <ProductRating offer={primary} />
+          </div>
         )}
 
         {onChooseOffer && alternatives.length > 0 && (
@@ -64,6 +68,7 @@ export function ItemCard({
                       {offer.price !== null ? `at ${RETAILER_LABELS[offer.retailer]}` : RETAILER_LABELS[offer.retailer]}
                     </span>
                   </button>
+                  <ProductRating offer={offer} className="ml-16" />
                 </li>
               ))}
             </ul>

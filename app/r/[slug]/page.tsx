@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import { AddressAsk } from "@/components/AddressAsk";
 import { ProductPhoto } from "@/components/ProductPhoto";
+import { ProductRating } from "@/components/ProductRating";
 import { Status } from "@/components/Status";
 import { formatPrice, getBrowserSupabase } from "@/lib/client";
 import { CATEGORIES, RETAILER_LABELS, type Registry, type RegistryItem, type RetailerId } from "@/lib/types";
@@ -140,6 +141,7 @@ function GiftRow({ item, slug, onBought }: { item: RegistryItem; slug: string; o
             {item.qty > 1 && <span className="font-normal text-muted"> ×{item.qty}</span>}
           </p>
           {primary && <p className="line-clamp-2 text-[13px] text-muted">{primary.title}</p>}
+          <ProductRating offer={primary} />
           <p className="font-serif text-[14px] leading-snug text-note italic">{item.reason}</p>
         </div>
       </div>

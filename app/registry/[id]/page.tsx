@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useRef, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { ProductPhoto } from "@/components/ProductPhoto";
+import { ProductRating } from "@/components/ProductRating";
 import { RegistryDetails } from "@/components/RegistryDetails";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
@@ -118,6 +119,7 @@ function ItemRow({ item, onRemove }: { item: RegistryItem; onRemove: () => void 
             {primary.title}, {RETAILER_LABELS[primary.retailer]}
           </a>
         )}
+        <ProductRating offer={primary} />
         <p className="hidden font-serif text-[14px] leading-snug text-note italic sm:block">{item.reason}</p>
         <div className="pt-1 text-[13px]">
           {item.purchased ? (

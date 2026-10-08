@@ -104,7 +104,7 @@ function toOffer(entry: CatalogEntry): Offer {
     price: entry.price,
     imageUrl: entry.imageUrl,
     url: entry.url,
-    rating: entry.tier === "budget" ? 4.2 : 4.5,
+    rating: null,
     inStock: true,
   };
 }
