@@ -1,0 +1,1 @@
+open the env local file for me
