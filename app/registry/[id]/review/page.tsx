@@ -9,7 +9,7 @@ import { StartOverLink } from "@/components/RegistryActions";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
 import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
-import { MicIcon, TalkButton, VoiceInvite, VoiceRoom } from "@/components/voice/VoiceControls";
+import { TalkButton, VoiceInvite, VoiceRoom } from "@/components/voice/VoiceControls";
 import { itemForVoice } from "@/lib/review-speech";
 import { CATEGORIES, PICK_REASON, type Category, type Registry, type RegistryItem } from "@/lib/types";
 
@@ -127,7 +127,7 @@ function Review({ id }: { id: string }) {
 
   function talk(intent: "review" | "pick") {
     if (!registry) return;
-    const section = category && firstPending(registry, category) ? category : nextCategory(registry, null);
+    const section = category && firstPending(registry, category) ? category : nextCategory(registry, category);
     if (!section) return;
     setCategory(section);
     setVoiceError("");
@@ -186,54 +186,49 @@ function Review({ id }: { id: string }) {
           </div>
         )}
 
-        {voice.active && (
-          <VoiceRoom
-            status={voice.status}
-            muted={voice.muted}
-            onMute={voice.setMuted}
-            onStop={voice.stop}
-            stopLabel="Done"
-            level={voice.level}
-            heard={heard}
-            hint="Say keep or skip, or name one you'd rather have."
-          />
-        )}
-        {voiceError && (
-          <p role="alert" className="text-[13px] text-danger">
-            {voiceError}
-          </p>
-        )}
-
         {current ? (
-          <ItemCard key={current.id} item={current} onChooseOffer={(offerId) => void setPrimary(current.id, offerId)}>
+          // Not keyed by item, so the voice panel stays put while items change under it.
+          <ItemCard item={current} onChooseOffer={(offerId) => void setPrimary(current.id, offerId)}>
             <div className="sticky bottom-0 -mx-4 space-y-3 bg-bg px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 md:static md:mx-0 md:px-0 md:pt-4 md:pb-0">
               {finding ? (
                 <p className="text-[14px] text-muted">Finding your pick…</p>
               ) : (
                 current.reason === PICK_REASON && <PickNote item={current} />
               )}
-              <div className="grid grid-cols-2 gap-3">
-                <button className="btn-quiet" onClick={() => void setStatus(current.id, "skip")}>
-                  Skip
-                </button>
-                <button className="btn-primary" onClick={() => void setStatus(current.id, "keep")}>
-                  Keep
-                </button>
-              </div>
-              <HaveOneInMind
-                key={current.id}
-                itemName={current.name}
-                onPick={async (product) => {
-                  setFinding(true);
-                  try {
-                    await pickItem(current.id, product);
-                  } finally {
-                    setFinding(false);
-                  }
-                }}
-                onSpeak={voiceEnabled && !voice.active ? () => talk("pick") : undefined}
-                onReviewByVoice={voiceEnabled && !voice.active ? () => talk("review") : undefined}
-              />
+              {voiceError && (
+                <p role="alert" className="text-[13px] text-danger">
+                  {voiceError}
+                </p>
+              )}
+              {voice.active ? (
+                <VoiceRoom
+                  status={voice.status}
+                  muted={voice.muted}
+                  onMute={voice.setMuted}
+                  onStop={voice.stop}
+                  stopLabel="Tap instead"
+                  level={voice.level}
+                  heard={heard}
+                  hint="Say keep or skip, or name the one you'd rather have."
+                />
+              ) : (
+                <CardActions
+                  key={current.id}
+                  itemName={current.name}
+                  voice={voiceEnabled}
+                  onTalk={() => talk("review")}
+                  onSayPick={() => talk("pick")}
+                  onDecide={(status) => void setStatus(current.id, status)}
+                  onPick={async (product) => {
+                    setFinding(true);
+                    try {
+                      await pickItem(current.id, product);
+                    } finally {
+                      setFinding(false);
+                    }
+                  }}
+                />
+              )}
             </div>
           </ItemCard>
         ) : (
@@ -254,8 +249,16 @@ function Review({ id }: { id: string }) {
                   </li>
                 ))}
             </ul>
-            <div className="sm:max-w-sm">
-              <NextStep groups={groups} onPick={setCategory} id={id} />
+            <div className="space-y-3 sm:max-w-md">
+              {voiceEnabled && progress < 1 && (
+                <VoiceInvite title="Keep going by voice" detail="I'll pick up with the next section." onStart={() => talk("review")} />
+              )}
+              {voiceError && (
+                <p role="alert" className="text-[13px] text-danger">
+                  {voiceError}
+                </p>
+              )}
+              <NextStep groups={groups} onPick={setCategory} id={id} quiet={voiceEnabled} />
             </div>
           </div>
         )}
@@ -275,10 +278,10 @@ function Review({ id }: { id: string }) {
       </div>
 
       {voiceEnabled && progress < 1 && (
-        <div className="sm:max-w-md">
+        <div className="sm:max-w-xl">
           <VoiceInvite
-            title="Review by voice"
-            detail="I'll read each one. Say keep or skip, or name one you'd rather have."
+            title="Talk it through"
+            detail="I'll read each item. Say keep or skip, or name the one you'd rather have."
             onStart={() => talk("review")}
           />
         </div>
@@ -345,35 +348,63 @@ function PickNote({ item }: { item: RegistryItem }) {
   );
 }
 
-/** For when the parent already knows the product they want: type it, or say it. */
-function HaveOneInMind({
+/**
+ * Keep, skip, or swap in the one they already have in mind. Talking comes first when voice is available;
+ * tapping and typing stay one step away.
+ */
+function CardActions({
   itemName,
+  voice,
+  onTalk,
+  onSayPick,
+  onDecide,
   onPick,
-  onSpeak,
-  onReviewByVoice,
 }: {
   itemName: string;
+  voice: boolean;
+  onTalk: () => void;
+  onSayPick: () => void;
+  onDecide: (status: "keep" | "skip") => void;
   onPick: (product: string) => Promise<void>;
-  onSpeak?: () => void;
-  onReviewByVoice?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  if (!open && voice) {
+    return (
+      <div className="space-y-3">
+        <VoiceInvite title="Keep, skip, or name your own" detail="Just say it. I'll read each one as we go." onStart={onTalk} />
+        <div className="grid grid-cols-3 gap-2">
+          <button className="btn-quiet px-2 py-2.5 text-[14px] whitespace-nowrap" onClick={() => onDecide("skip")}>
+            Skip
+          </button>
+          <button className="btn-quiet px-2 py-2.5 text-[14px] whitespace-nowrap" onClick={() => onDecide("keep")}>
+            Keep
+          </button>
+          <button className="btn-quiet px-2 py-2.5 text-[14px] whitespace-nowrap" onClick={() => setOpen(true)}>
+            Type my own
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!open) {
     return (
-      <div className="flex items-center justify-between gap-4 text-[14px]">
-        <button className="link" onClick={() => setOpen(true)}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <button className="btn-quiet" onClick={() => onDecide("skip")}>
+            Skip
+          </button>
+          <button className="btn-primary" onClick={() => onDecide("keep")}>
+            Keep
+          </button>
+        </div>
+        <button className="link text-[14px]" onClick={() => setOpen(true)}>
           I have one in mind
         </button>
-        {onReviewByVoice && (
-          <button className="link inline-flex items-center gap-1.5" onClick={onReviewByVoice}>
-            <MicIcon className="h-4 w-4" />
-            Review by voice
-          </button>
-        )}
       </div>
     );
   }
@@ -408,7 +439,7 @@ function HaveOneInMind({
           placeholder="Product name"
           className="field min-w-0 flex-1"
         />
-        {onSpeak && <TalkButton label="Say it out loud" onClick={onSpeak} disabled={busy} />}
+        {voice && <TalkButton label="Say it out loud" onClick={onSayPick} disabled={busy} />}
         <button className="btn-primary shrink-0 px-5" disabled={busy || !text.trim()}>
           {busy ? "Finding…" : "Find"}
         </button>
@@ -425,7 +456,7 @@ function HaveOneInMind({
   );
 }
 
-function NextStep({ groups, onPick, id }: { groups: Group[]; onPick: (c: Category | null) => void; id: string }) {
+function NextStep({ groups, onPick, id, quiet }: { groups: Group[]; onPick: (c: Category | null) => void; id: string; quiet?: boolean }) {
   const next = groups.find((g) => g.pending.length > 0);
   if (!next) {
     return (
@@ -435,8 +466,8 @@ function NextStep({ groups, onPick, id }: { groups: Group[]; onPick: (c: Categor
     );
   }
   return (
-    <button className="btn-primary w-full" onClick={() => onPick(next.category)}>
-      Review {next.category}
+    <button className={`${quiet ? "btn-quiet" : "btn-primary"} w-full`} onClick={() => onPick(next.category)}>
+      {quiet ? `Or tap through ${next.category}` : `Review ${next.category}`}
     </button>
   );
 }
