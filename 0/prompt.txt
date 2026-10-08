@@ -1,0 +1,4 @@
+this is a problem because when u click confirm email..it just leads u to a localhost Save your progress
+Sign in with your email first so your registry is saved. No password needed.
+
+Check your inbox for a sign-in link.
