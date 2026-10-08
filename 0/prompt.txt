@@ -1,1 +1,5 @@
+i need more help understanding option 2
+
+---
+
 okay so i added deepgram credits..and why does it need member permissions? I thought I could just leave it at default permissions
