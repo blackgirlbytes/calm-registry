@@ -18,8 +18,11 @@ const POLL_MS = 30000;
 
 type Private = { address: ShippingAddress | null; requests: AddressRequest[] };
 
-/** Names, a note for family, the private shipping address, and who has asked for it. */
-export function RegistryDetails({ registry, onSaved }: { registry: Registry; onSaved: () => Promise<void> }) {
+/**
+ * Names, a note for family, the private shipping address, and who has asked for it.
+ * Closed, it shows only address requests, since those need an answer.
+ */
+export function RegistryDetails({ registry, onSaved, open = true }: { registry: Registry; onSaved: () => Promise<void>; open?: boolean }) {
   const [data, setData] = useState<Private | null>(null);
   const [editing, setEditing] = useState(false);
 
@@ -46,7 +49,7 @@ export function RegistryDetails({ registry, onSaved }: { registry: Registry; onS
 
   return (
     <section className="space-y-4" aria-label="Registry details">
-      {editing ? (
+      {!open ? null : editing ? (
         <DetailsForm
           registry={registry}
           address={data?.address ?? null}

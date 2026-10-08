@@ -14,7 +14,7 @@ export function ProductPhoto({ offer, label, className = "" }: { offer?: Offer; 
   if (!offer?.imageUrl) {
     return (
       <div className={`flex shrink-0 items-center justify-center rounded-[18px] border border-dashed border-line ${className}`}>
-        <span className="px-2 text-center font-serif text-[13px] leading-snug text-muted">{label}</span>
+        <span className="line-clamp-3 px-2 text-center font-serif text-[12px] leading-snug hyphens-auto text-muted">{label}</span>
       </div>
     );
   }
