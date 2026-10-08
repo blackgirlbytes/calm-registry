@@ -1,81 +1,33 @@
-# Ask an agent to build a baby registry with Deepgram voice
+# Build a voice-powered baby registry with agent prompts
 
-You do not have to write a technical plan for your coding agent. Start with the problem you want to solve. Ask questions when the agent's answer is confusing. Then ask it to build and show you what works.
+Give these prompts to your coding agent in order. The agent handles installing packages, writing code, and running the app. You need a [Deepgram](https://console.deepgram.com/) project with credits and an API key with **Member** permission. Provide the key through a private secret setting when the agent asks for it.
 
-This guide follows the actual Entire sessions for Calm Registry. **“What the creator said”** means the words came from those sessions. **“You could say”** is a new example for your own project, not a quote from the creator. The [code guide](deepgram-build-tutorial.md) explains the finished app.
+Deepgram **Voice Agent** handles the live conversation through one connection, so the app does not have to join separate listening and speaking services. **Flux** hears the parent's words and notices when they finish speaking, so they do not have to press a button after every answer. **Flux text-to-speech** sends back the spoken reply in pieces, which lets playback start sooner. The [code tutorial](deepgram-build-tutorial.md) shows how these parts fit together.
 
-## What you need from Deepgram
+## 1. Build the registry
 
-Voice needs a [Deepgram](https://console.deepgram.com/) account with credits and an API key with **Member** permission or higher. That permission lets the app get a short pass for the browser. Your coding agent can handle the project setup, private key settings, and running the app. If it needs the key, provide it through a private secret setting rather than pasting it into chat.
+> Build a baby registry app for expecting parents who feel overwhelmed by making a list. Let them describe their needs in a short conversation. Ask about the due date, where they live, their home and travel needs, feeding plans, and what they already own. Let them skip questions or finish early. Show their answers before building the registry. Then create a list they can review one item at a time and share with family.
 
-## 1. Tell the agent why the app should exist
+## 2. Add Deepgram voice
 
-**What the creator said:**
+> Add a **Talk instead** option using Deepgram's Voice Agent API. Parents should be able to answer the registry questions out loud and hear the next question. Keep typing available too. Keep the Deepgram API key private on the server, and give the browser a short-lived token to connect directly to Deepgram. Tell me what I need to provide from my Deepgram account, and handle the app setup yourself.
 
-> I want to build a baby registry app that makes it easier for pregnant parents to create a registry. The user should be able to describe what they need conversationally and have the app generate a registry.
->
-> pregnant tired moms are often required to build out registries. it feels overwhelming. how can we fix the overwhelm..what would make it easy..im not sure
+## 3. Choose how Deepgram listens and speaks
 
-This gave the agent a job: make a big, tiring task feel smaller. The agent suggested a short chat, a ready-made list, small keep-or-skip choices, and simple edits. You can start with a problem even when you do not know the solution.
+> Use Deepgram Flux `flux-general-en` to listen. I want it to recognize what parents say and know when they have finished a thought, so the conversation feels natural. Add keyterms for baby products and stores, such as bassinet, swaddle, stroller, Target, and Walmart. Use Deepgram Flux voice `flux-alexis-en` to speak the replies. Keep the voice calm and the answers short. Explain these choices in plain language when you show me the result.
 
-## 2. Bring up Deepgram as an idea
+## 4. Make the questions work by voice
 
-**What the creator said:**
+> Have the voice agent ask one short registry question at a time. Use the same question rules as the typed chat. Show the words on screen as the conversation happens. When the parent says they are done, collect their answers into the app's parent profile and show them for review. Wait for them to tap **Build** before creating the registry. Let them interrupt the spoken reply, mute the mic, or return to typing.
 
-> curious about your thoughts on adding a voice mode to this..particularly using deepgram
+## 5. Review the registry by voice
 
-The agent compared a few ways to use Deepgram. That question was enough to start the voice discussion. You do not have to name sound formats, API routes, or model IDs in your first prompt.
+> After the registry is built, let the parent review items by talking. Read one item at a time and let them say **keep**, **skip**, or name a product they would rather have. If they ask for other choices, read a few options and let them pick one. Use Deepgram Voice Agent function calls to update the item showing on screen. Keep the tap controls available.
 
-**You could say:**
+## 6. Make spoken edits safe
 
-> People might be holding a baby or resting while they make this list. Could they talk to the app instead of typing? I want to use Deepgram. What are the easiest ways to do that, and what would each feel like for a parent?
+> Let the parent say changes such as “We already have a stroller” or “Make this cheaper.” Have the voice agent show and read back a preview first. Ask whether to make the change. Apply it only after the parent agrees, and cancel it if they say no. Do not say a change is finished until the app confirms it worked.
 
-## 3. Ask the agent to explain what you do not understand
+## 7. Check the full experience
 
-**What the creator said:**
-
-> i need more help understanding option 2
-
-The agent then described what a parent would see and what the app would do behind the scenes. Ask for a simple example before choosing an approach. The early discussion covered a voice layer on top of the typed chat. The finished code uses **Deepgram Voice Agent**, which listens, picks the next reply, and speaks over one connection. These are different plans. The code guide follows the one that was built.
-
-**You could say:**
-
-> Show me what happens when a parent taps the talk button, answers one question, and hears the next one. Explain it like I have never built a voice app.
-
-## 4. Tell the agent what the parent should be able to do
-
-The sessions do not show the creator writing a long technical build prompt. The agent moved from the conversation into a build plan. If you want the same kind of result, use a short request about the experience you want.
-
-**You could say:**
-
-> Let's use Deepgram's Voice Agent. Let parents answer registry questions out loud and say changes to their list. Keep typing as an option. Show their answers before building the list, and ask before making a change. Build it in this app and tell me how to try it.
-
-That request gives the agent the important rules. It can work out the code details. In this repo, the result uses a private Deepgram key on the server, a short browser pass, and a voice connection from the browser to Deepgram. It shows proposed list changes before applying them.
-
-## 5. Question setup problems
-
-**What the creator said:**
-
-> okay so i added deepgram credits..and why does it need member permissions? I thought I could just leave it at default permissions
-
-That question found a real setup issue. The default key could not ask Deepgram for a short browser pass. A key with Member permission is needed for that step. The private key stays on the server.
-
-**You could say:**
-
-> I added my Deepgram key, but voice will not start. Please check which step fails. Explain the error in simple words, and tell me what I need to change in Deepgram. Do not show or print my key.
-
-## 6. Ask to see it work
-
-Once the agent says the feature is ready, ask for a real check. Do not settle for “the code looks right.”
-
-**You could say:**
-
-> Please test the whole voice experience. Try answering a question out loud, finishing the answers, and saying “we already have a stroller.” Make sure the stroller stays on the list until I say yes. Also try blocking the microphone. Tell me plainly what worked and what you could not test.
-
-A browser check matters here because microphone permission and sound playback cannot be proven by reading code alone.
-
-## What Deepgram does in the finished app
-
-Deepgram hears the parent's words with Flux, runs the voice conversation, and speaks back with a Flux voice. The app keeps the answers and gift list. It shows answers for review before building a registry. For changes, it shows a preview and waits for the parent to agree. The [step-by-step code guide](deepgram-build-tutorial.md) shows where each part lives.
-
-The exact quotes above come from Entire checkpoint `01M4CGXCC6K09E5D4XPEE93HGG`, which contains the original conversation and voice work. The voice feature was committed in `af809fa`; the edit confirmation fix was committed in `2f6d827`. Deepgram's [token guide](https://developers.deepgram.com/guides/fundamentals/token-based-authentication) explains the short browser pass.
+> Test the full voice journey in a browser: answer questions out loud, review the answers, build the registry, keep or skip an item by voice, and approve and cancel spoken edits. Check that typing still works, microphone permission is handled, and the Deepgram key never reaches browser code. Fix any problems you find. Tell me what you tested and what still needs a real device or account check.

@@ -1,12 +1,22 @@
 # Build a voice-powered baby registry with Deepgram
 
-This guide follows the working Calm Registry app in this repository. A parent talks about what they need for a baby. Deepgram hears them, helps ask the next question, and speaks back. The app shows their answers, builds a gift list after they tap **Build**, and asks before changing that list.
+This guide follows the working Calm Registry app in this repository. A parent answers questions out loud, reviews the answers, builds a registry, and then uses voice to review or change items. Deepgram runs the live conversation. The app owns the registry and decides when a change is allowed.
 
-Three words to know: an **API key** is a private password for the app, a **token** is a short pass the browser can use, and a **WebSocket** is an open line that carries sound back and forth. You do not need to memorize the names to follow the steps.
+## Why these Deepgram pieces fit together
+
+| Piece | What it does | Why it helps here |
+| --- | --- | --- |
+| Voice Agent API | Keeps one live connection for listening, choosing a reply, speaking, and calling app functions. | The parent can have a back-and-forth conversation, while the app still controls registry actions. |
+| Flux speech-to-text, `flux-general-en` | Turns English speech into words and detects when a speaking turn ends. | Parents can pause naturally instead of pressing a button after each answer. |
+| Keyterms | Give Flux product and store names to listen for. | Names like “bassinet” and “Walmart” are easier to recognize. |
+| Hosted thinking model | Uses the prompt and the parent's answers to choose the next question or function call. | Deepgram coordinates the full voice turn over the same connection. |
+| Flux text-to-speech, `flux-alexis-en` | Sends the agent's spoken reply back as audio. | The app can start playing before the whole reply has arrived. |
+
+Flux is built for conversation. Deepgram's Nova models offer more transcription features, such as smart formatting, but Flux's built-in turn detection is the useful part for this back-and-forth flow. This app uses the English Flux models. Deepgram also offers `flux-general-multi` for multilingual listening, while Flux speech output currently uses English voices. See Deepgram's [speech-to-text comparison](https://developers.deepgram.com/docs/voice-agent-stt-models) and [Flux voice guide](https://developers.deepgram.com/docs/flux-tts/voices).
 
 ## 1. Set up the project and keys
 
-You need Node.js, npm, a Deepgram project, and a Deepgram API key. In the [Deepgram Console](https://console.deepgram.com/), create a key with **Member** permission or higher. This lets the app ask Deepgram for short browser passes. Copy the key when it is shown.
+You need Node.js, npm, a Deepgram project, and a Deepgram API key. In the [Deepgram Console](https://console.deepgram.com/), create a key with **Member** permission or higher. This lets the server request temporary browser tokens. Copy the key when it is shown.
 
 ```bash
 git clone https://github.com/blackgirlbytes/calm-registry.git
@@ -21,7 +31,7 @@ Set this value in `.env.local`:
 DEEPGRAM_API_KEY=your_deepgram_member_key
 ```
 
-Keep the key on the server. Do not use `NEXT_PUBLIC_DEEPGRAM_API_KEY` or put the key in the page code. You do not need a separate OpenAI key for the live voice chat. Deepgram runs that model for you. `OPENAI_API_KEY` is optional for the typed chat and custom registry items. Without it, this repo uses built-in questions and sample items. Store keys are also optional on your computer.
+Keep the key on the server. Do not use `NEXT_PUBLIC_DEEPGRAM_API_KEY` or put the key in browser code. The Voice Agent settings below use a model that Deepgram hosts for the conversation. `OPENAI_API_KEY` is optional for this repo's typed chat and custom registry generation. Without it, the app uses built-in questions and sample items. Retailer keys are also optional locally.
 
 Run the app:
 
@@ -39,7 +49,7 @@ First make the app work by typing. It needs to save answers in a `ParentProfile`
 
 ## 3. Mint a temporary Deepgram token on the server
 
-The browser talks to Deepgram using a short pass, not your private key. This code asks Deepgram for that pass. It lives in [`lib/voice/settings.ts`](../lib/voice/settings.ts) and [`app/api/voice/route.ts`](../app/api/voice/route.ts):
+The browser connects to Deepgram with a temporary token, not the private API key. The server requests that token in [`lib/voice/settings.ts`](../lib/voice/settings.ts), then returns it from [`app/api/voice/route.ts`](../app/api/voice/route.ts):
 
 ```ts
 export async function grantToken(): Promise<string> {
@@ -52,13 +62,22 @@ export async function grantToken(): Promise<string> {
 }
 ```
 
-Before giving out the pass, `POST /api/voice` checks who is using the app. If they want to edit a list, it checks that the list belongs to them. It then sends the browser `{ token, url, settings, greeting }`. `GET /api/voice` tells the page whether to show the voice button. The pass lasts 30 seconds, so use it right away to **start** the sound connection. The conversation can last longer.
+Before giving out the token, `POST /api/voice` checks the app user. For review and edit sessions, it also checks that the registry belongs to that user. It returns `{ token, url, settings, greeting }`. `GET /api/voice` tells the page whether to show voice controls. The token lasts 30 seconds by default, so the browser uses it right away to open the connection. An open conversation can last longer. This is why the private key stays off the page. Deepgram explains this in its [token guide](https://developers.deepgram.com/guides/fundamentals/token-based-authentication).
 
 ## 4. Configure Deepgram to listen, think, and speak
 
-Next, tell Deepgram what each part should do. This example is shortened from [`lib/voice/settings.ts`](../lib/voice/settings.ts):
+Next, send Deepgram a `Settings` message. `listen` picks the speech recognition model, `think` sets the conversation prompt and functions, and `speak` picks the voice. This example is shortened from [`lib/voice/settings.ts`](../lib/voice/settings.ts):
 
 ```ts
+const { $schema: _schema, ...parameters } =
+  z.toJSONSchema(ParentProfileSchema) as Record<string, unknown>;
+const functions = [{
+  name: "finish_intake",
+  description: "Collect the parent's answers for review.",
+  parameters,
+  defer_until_eot: true,
+}];
+
 const settings = {
   type: "Settings",
   audio: {
@@ -77,7 +96,7 @@ const settings = {
     think: {
       provider: { type: "open_ai", model: "gpt-4o-mini", temperature: 0.4 },
       prompt: "Ask one short registry question at a time. Use finish_intake when ready.",
-      functions: [/* finish_intake schema from ParentProfileSchema */],
+      functions,
     },
     speak: { provider: { type: "deepgram", version: "v2", model: "flux-alexis-en", speed: 0.95 } },
     greeting: "Hi! When is your little one due?",
@@ -85,11 +104,13 @@ const settings = {
 };
 ```
 
-In the real app, [`lib/ai/prompts.ts`](../lib/ai/prompts.ts) has the full question rules. Typed chat and voice chat use the same rules. The extra voice rules say to speak in short sentences and ask one question at a time. `finish_intake` uses the actual `ParentProfileSchema`, converted with `z.toJSONSchema`, so Deepgram knows which answers to send back. Flux can tell when the parent has finished a turn. `keyterms` help it hear baby product and store names.
+`flux-general-en` is the English listening model. `version: "v2"` selects the Flux model family inside Voice Agent. The keyterms bias recognition toward registry words. `flux-alexis-en` is the English speaking voice, with speed set a little slower than normal. The `think` setting uses a hosted `gpt-4o-mini` model to follow the prompt and decide when to call an app function. Deepgram coordinates these parts for each turn.
+
+The full question rules live in [`lib/ai/prompts.ts`](../lib/ai/prompts.ts). Typed and voice intake share that guidance. The voice rules add short spoken sentences and one question at a time. `finish_intake` uses `ParentProfileSchema`, converted with `z.toJSONSchema`, so the returned answers follow the app's real profile shape. Deepgram's [Voice Agent prompting guide](https://developers.deepgram.com/docs/prompting-voice-agents) explains why function triggers belong in the prompt as well as the function list.
 
 ## 5. Stream microphone audio to the Voice Agent
 
-[`components/voice/useVoiceAgent.ts`](../components/voice/useVoiceAgent.ts) handles the sound in the browser. Start it when the parent taps a button. That tap lets the browser ask for microphone access and play the reply. Then ask `/api/voice` for a pass and open the sound connection. This short example uses the `play` and `handleEvent` helpers in the full file:
+[`components/voice/useVoiceAgent.ts`](../components/voice/useVoiceAgent.ts) handles audio in the browser. Start it from a button tap so the browser can allow microphone access and playback. Ask `/api/voice` for a token, then open Deepgram's WebSocket. A WebSocket stays open so both sides can send audio and events as the conversation happens. This short example uses the `play` and `handleEvent` helpers in the full file:
 
 ```ts
 const ws = new WebSocket(config.url, ["bearer", config.token]);
@@ -105,27 +126,34 @@ ws.onmessage = (message) => {
 };
 ```
 
-Wait for `SettingsApplied` before sending sound. [`public/voice-capture-worklet.js`](../public/voice-capture-worklet.js) changes microphone sound into the format Deepgram asked for and sends small pieces, about 50 milliseconds each. Deepgram sends small pieces of spoken reply back. The hook plays them in order.
+Wait for `SettingsApplied` before sending sound. [`public/voice-capture-worklet.js`](../public/voice-capture-worklet.js) converts microphone audio to 16 kHz mono `linear16`, the format requested in Settings, and sends roughly 50 ms chunks. Deepgram returns 24 kHz `linear16` audio. The hook queues those chunks for smooth playback.
 
 Use `ConversationText` to show words on the page. When `UserStartedSpeaking` arrives, stop the agent's reply so the parent can interrupt. The other event names help the page show **Listening**, **Thinking**, or **Speaking**. The app also marks **Speaking** when sound arrives, because `AgentStartedSpeaking` does not always arrive. Turn off the microphone and close the connection when the parent stops or leaves. While muted, send `KeepAlive` so the connection stays open.
 
 ## 6. Turn the conversation into a reviewable profile
 
-When Deepgram has enough answers, it sends a `FunctionCallRequest` named `finish_intake`. A function call is just Deepgram asking the app to do a job. The app does the job and replies:
+When Deepgram has enough answers, it sends a `FunctionCallRequest` named `finish_intake`. Function calling lets the voice agent ask the app to do a specific job. Deepgram handles the conversation, while the app validates and stores the result. Inside the hook's function handler, after checking that the socket is open, the app replies with the same call ID:
 
 ```ts
-const result = await onFunction(call.name, JSON.parse(call.arguments || "{}"));
-ws.send(JSON.stringify({
+const args = call.arguments ? JSON.parse(call.arguments) : {};
+const content = await optionsRef.current.onFunction?.(call.name, args) ?? "Not available.";
+s.ws.send(JSON.stringify({
   type: "FunctionCallResponse",
   id: call.id,
   name: call.name,
-  content: result,
+  content,
 }));
 ```
 
 The handler in [`app/start/page.tsx`](../app/start/page.tsx) fills skipped answers and shows the review card. The parent then taps **Build**. Talking and typing both add messages to the same chat, so the parent can switch between them.
 
-## 7. Let voice propose edits, then require agreement
+## 7. Review items by voice
+
+After building, the parent reviews items one at a time. [`reviewSettings`](../lib/voice/settings.ts) starts a Deepgram Voice Agent session with the current item and a prompt to ask “Keep it, or skip?” The agent can call `keep_item`, `skip_item`, `choose_option`, `use_their_pick`, `describe_item`, or `open_category`. The handlers in [`app/registry/[id]/review/page.tsx`](../app/registry/%5Bid%5D/review/page.tsx) update the item on screen and tell Deepgram what to say next.
+
+For example, “We want the HALO BassiNest” calls `use_their_pick` with that product name. The review session adds brand names such as HALO and Nuna to Flux keyterms. This helps speech recognition with names that ordinary words might not cover. The parent can still tap the keep and skip buttons.
+
+## 8. Let voice propose edits, then require agreement
 
 After the list exists, the same voice code can help change it. [`lib/voice/settings.ts`](../lib/voice/settings.ts) tells Deepgram what is on the list and gives it three jobs:
 
@@ -137,14 +165,15 @@ After the list exists, the same voice code can help change it. [`lib/voice/setti
 
 The handler is in [`app/registry/[id]/page.tsx`](../app/registry/%5Bid%5D/page.tsx). It remembers the change that is waiting for approval. Deepgram must say a change **would** happen while it is only a preview. It can say the change **did** happen only after `apply_change` succeeds. The server checks again that this parent owns the list.
 
-## 8. Test the actual conversation
+## 9. Test the actual conversation
 
 1. Tap **Answer out loud** on `/start`, allow microphone access, and answer the due date question.
 2. Confirm that `ConversationText` appears and the next question is spoken.
-3. Say “Just build it.” Check the answers card, then tap **Build** and review the generated items.
-4. On the registry page, tap **Say a change** and say “We already have a stroller.” Confirm that the preview appears and nothing changes yet.
-5. Say yes to apply it, or no to cancel it. Check the item list after both paths.
-6. Block microphone access once. The text controls should still work.
+3. Say “Just build it.” Check the answers card, then tap **Build**.
+4. On the review page, say “keep,” “skip,” and the name of a product you prefer. Check that the item on screen follows each response.
+5. On the registry page, tap **Say a change** and say “We already have a stroller.” Confirm that the preview appears and nothing changes yet.
+6. Say yes to apply it, or no to cancel it. Check the item list after both paths.
+7. Block microphone access once. The text controls should still work.
 
 If the voice button is missing, check `DEEPGRAM_API_KEY` and restart the app. If the button appears but voice will not start, check the key's Member permission and the browser's microphone permission. Run `npm run typecheck` and `npm run build` before putting the app online. Use HTTPS for the public website so the microphone works.
 
@@ -153,6 +182,7 @@ If the voice button is missing, check `DEEPGRAM_API_KEY` and restart the app. If
 - [Voice Agent message flow](https://developers.deepgram.com/docs/voice-agent-message-flow)
 - [Voice Agent API reference](https://developers.deepgram.com/reference/voice-agent/voice-agent)
 - [Flux speech-to-text settings for Voice Agent](https://developers.deepgram.com/docs/voice-agent-stt-models)
+- [Flux text-to-speech voices](https://developers.deepgram.com/docs/flux-tts/voices)
 - [Temporary token authentication](https://developers.deepgram.com/guides/fundamentals/token-based-authentication)
 - Entire checkpoint `01M4CGFZK7DC2Z8QBA529K3B94` records the voice feature in commit `af809fa`.
 - Entire checkpoint `01M4CGXCC6K09E5D4XPEE93HGG` records the edit confirmation fix in commit `2f6d827`.
