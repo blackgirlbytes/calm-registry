@@ -6,8 +6,8 @@
   --surface: #f8f6fc;
   --raise: #efebf8;
   --text: #3a3150;
-  --muted: #6e6684;
-  --line: rgb(58 49 80 / 0.12);
+  --muted: #5c5470;
+  --line: rgb(58 49 80 / 0.18);
   /* Accent is for text, focus, and progress, so it stays readable. Primary is the pastel button fill. */
   --accent: #7a68a8;
   --on-accent: #ffffff;
@@ -24,7 +24,7 @@
   --room: #ece6f8;
   --room-raise: #e2d9f3;
   --room-text: #3a3150;
-  --room-muted: #6e6684;
+  --room-muted: #5c5470;
   --room-line: rgb(58 49 80 / 0.16);
   --wave: #8b7bb0;
   --wave-you: #e67595;
