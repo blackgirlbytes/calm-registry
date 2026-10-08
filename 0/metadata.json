@@ -1,0 +1,84 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4CNRK0M63HVQ0RGV32ZV86R",
+  "session_id": "770e646a-9faa-4bd8-9b35-45c69cb8452a",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T02:34:01.905137Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 2,
+  "files_touched": [
+    "app/start/page.tsx",
+    "lib/ai/generate.ts",
+    "lib/ai/intake.ts",
+    "lib/ai/prompts.ts",
+    "lib/profile.ts",
+    "lib/registry-store.ts",
+    "lib/types.ts",
+    "supabase/migrations/20261008120000_registry_details_and_addresses.sql"
+  ],
+  "agent": "Factory AI Droid",
+  "model": "claude-opus-5-5",
+  "turn_id": "954fab0583a9",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-08T02:34:01.848544Z",
+    "agent_lines": 497,
+    "agent_removed": 21,
+    "human_added": 611,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 1109,
+    "total_lines_changed": 1130,
+    "agent_percentage": 45.84070796460177,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 821,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 821,
+      "user_lines_removed": 0,
+      "agent_lines_added": 498,
+      "agent_lines_removed": 21,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147
+      }
+    }
+  ]
+}

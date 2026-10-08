@@ -1,0 +1,13 @@
+i need more help understanding option 2
+
+---
+
+okay so i added deepgram credits..and why does it need member permissions? I thought I could just leave it at default permissions
+
+---
+
+it was changed now
+
+---
+
+how come it says welcome baby last name..how would someone fill out information about their baby and themselves and their address etc
