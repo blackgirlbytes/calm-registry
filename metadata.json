@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4DB6PNZ4MB869ZNYF32Y3N6",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "app/start/page.tsx",
     "components/AnswersCard.tsx",
@@ -13,6 +13,7 @@
     "lib/ai/intake.ts",
     "lib/ai/prompts.ts",
     "lib/answers.ts",
+    "lib/intake-steps.ts",
     "lib/profile.ts",
     "lib/registry-store.ts",
     "lib/retail/catalog.ts",
@@ -33,13 +34,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 286,
+    "cache_creation_tokens": 250166,
+    "cache_read_tokens": 28880262,
+    "output_tokens": 86212,
+    "api_call_count": 142
   }
 }
