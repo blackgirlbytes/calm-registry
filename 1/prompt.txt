@@ -1,0 +1,5 @@
+merge
+
+---
+
+/frontend-design did you check how it comes across for all screen sizes
