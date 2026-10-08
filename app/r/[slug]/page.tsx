@@ -140,7 +140,6 @@ function GiftRow({ item, slug, onBought }: { item: RegistryItem; slug: string; o
             {item.qty > 1 && <span className="font-normal text-muted"> ×{item.qty}</span>}
           </p>
           {primary && <p className="line-clamp-2 text-[13px] text-muted">{primary.title}</p>}
-          <p className="font-serif text-[14px] leading-snug text-note italic">{item.reason}</p>
         </div>
       </div>
 
