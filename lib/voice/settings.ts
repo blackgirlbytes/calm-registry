@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { openingTurn } from "../ai/intake";
 import { INTAKE_GUIDANCE, seedGuidance, todayLine, VOICE_RULES } from "../ai/prompts";
+import { itemForVoice, spokenItem } from "../review-speech";
 import { ParentProfileSchema, type ChatMessage, type ProfileSeed, type Registry } from "../types";
 
 export const AGENT_URL = "wss://agent.deepgram.com/v1/agent/converse";
@@ -42,7 +43,38 @@ function profileParameters() {
   return schema;
 }
 
-function baseSettings(mode: "intake" | "edit", prompt: string, functions: unknown[], greeting: string, history: ChatMessage[] = []) {
+// Brands parents often name when they already have a product in mind, which speech-to-text tends to mangle.
+const BRANDS = [
+  "HALO BassiNest",
+  "Snoo",
+  "UPPAbaby",
+  "Nuna",
+  "Chicco",
+  "Graco",
+  "Doona",
+  "Ergobaby",
+  "BabyBjörn",
+  "Owlet",
+  "Nanit",
+  "Hatch",
+  "Frida",
+  "Boppy",
+  "Spectra",
+  "Medela",
+  "Dr. Brown's",
+  "Philips Avent",
+  "Lovevery",
+  "WaterWipes",
+];
+
+function baseSettings(
+  mode: "intake" | "edit" | "review",
+  prompt: string,
+  functions: unknown[],
+  greeting: string,
+  history: ChatMessage[] = [],
+  keyterms = KEYTERMS,
+) {
   return {
     type: "Settings",
     tags: ["calm-registry", mode],
@@ -54,7 +86,7 @@ function baseSettings(mode: "intake" | "edit", prompt: string, functions: unknow
       ...(history.length && {
         context: { messages: history.map((m) => ({ type: "History", role: m.role, content: m.content })) },
       }),
-      listen: { provider: { type: "deepgram", model: "flux-general-en", version: "v2", keyterms: KEYTERMS } },
+      listen: { provider: { type: "deepgram", model: "flux-general-en", version: "v2", keyterms } },
       think: {
         provider: { type: "open_ai", model: "gpt-4o-mini", temperature: 0.4 },
         prompt: `${prompt}\n\n${VOICE_RULES}\n${todayLine()}`,
@@ -92,6 +124,71 @@ ${seed ? seedGuidance(seed) : ""}`;
   ];
   // Without the opening chat message, history would start with a user turn the agent never asked for.
   return { settings: baseSettings("intake", prompt, functions, greeting, answered ? history : []), greeting };
+}
+
+const REVIEW_PROMPT = `You help an expecting parent go through their baby registry draft out loud, one item at a time.
+They're likely tired. Keep every turn to one or two short sentences, and keep it moving.
+How to work:
+- Each item is described for you in a "say" line. Say it naturally, then ask "Keep it, or skip?"
+  Don't list the other options unless they ask.
+- Keep: "keep", "yes", "sure", "we need that", "add it". Call keep_item.
+- Skip: "skip", "no", "we have one", "don't need it", "next". Call skip_item.
+- If they name a product, brand, or model they'd rather have, or already have in mind, call use_their_pick
+  with just the product in their words, like "HALO BassiNest" or "Snoo". Then tell them what you found and ask
+  "Keep it, or skip?" If the result is a store search link, say you'll link to it so family can find that exact one.
+- If they ask what else there is, or for something cheaper, read up to three otherOptions briefly.
+  When they pick one, call choose_option with its option number, then ask keep or skip.
+- If they ask "what was that" or seem lost, call describe_item. They can also tap on screen; describe_item
+  always tells you what's showing now.
+- If they want a different section, call open_category.
+- Never say an item was kept, skipped, or changed unless the function succeeded.
+- When a function says everything is reviewed, tell them they're all done and say a short goodbye.`;
+
+const REVIEW_FUNCTIONS = (categories: string[]) => [
+  { name: "keep_item", description: "Keep the item on screen and move to the next one.", parameters: { type: "object", properties: {} } },
+  { name: "skip_item", description: "Skip the item on screen and move to the next one.", parameters: { type: "object", properties: {} } },
+  {
+    name: "use_their_pick",
+    description: "Replace the product on screen with a specific product the parent named. Returns what was found.",
+    parameters: {
+      type: "object",
+      properties: { product: { type: "string", description: "The brand, product, or model they named, in their words." } },
+      required: ["product"],
+    },
+  },
+  {
+    name: "choose_option",
+    description: "Switch to one of the other options for the item on screen.",
+    parameters: {
+      type: "object",
+      properties: { option: { type: "integer", description: "The option number from otherOptions." } },
+      required: ["option"],
+    },
+  },
+  { name: "describe_item", description: "Describe the item showing on screen right now.", parameters: { type: "object", properties: {} } },
+  {
+    name: "open_category",
+    description: "Jump to a different section of the registry.",
+    parameters: {
+      type: "object",
+      properties: { category: { type: "string", enum: categories } },
+      required: ["category"],
+    },
+  },
+];
+
+/** Talks the parent through keep or skip, starting at the item on screen. */
+export function reviewSettings(registry: Registry, itemId: string | null, intent: "review" | "pick") {
+  const pending = registry.items.filter((i) => i.status === "pending");
+  const item = pending.find((i) => i.id === itemId) ?? pending[0];
+  if (!item) throw new Error("Nothing left to review.");
+  const categories = [...new Set(registry.items.map((i) => i.category))];
+  const greeting =
+    intent === "pick"
+      ? `Sure. What would you like instead of the ${item.name.toLowerCase()}? Just say the brand or product.`
+      : `Let's go through ${item.category}. Say keep or skip, or name one you'd rather have. First up, ${spokenItem(item)}. Keep it, or skip?`;
+  const prompt = `${REVIEW_PROMPT}\nThe item on screen when you started: ${JSON.stringify(itemForVoice(item))}`;
+  return { settings: baseSettings("review", prompt, REVIEW_FUNCTIONS(categories), greeting, [], [...KEYTERMS, ...BRANDS, "keep", "skip"]), greeting };
 }
 
 export function editSettings(registry: Registry) {

@@ -27,6 +27,9 @@ export type Priority = (typeof PRIORITIES)[number];
 
 export type ItemStatus = "pending" | "keep" | "skip";
 
+/** The reason saved on an item when the parent swapped in a product they already had in mind. */
+export const PICK_REASON = "The one you had in mind.";
+
 export const HOUSEHOLD = ["siblings", "pets", "grandparents"] as const;
 export const CIRCLES = ["small", "medium", "big"] as const;
 export const VALUES = ["organic", "simple"] as const;

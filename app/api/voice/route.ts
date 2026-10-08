@@ -2,7 +2,7 @@ import { getOwnerId, unauthorized } from "@/lib/auth";
 import { parseSeed } from "@/lib/profile";
 import { registryStore } from "@/lib/registry-store";
 import type { ChatMessage } from "@/lib/types";
-import { AGENT_URL, editSettings, grantToken, intakeSettings, isVoiceConfigured } from "@/lib/voice/settings";
+import { AGENT_URL, editSettings, grantToken, intakeSettings, isVoiceConfigured, reviewSettings } from "@/lib/voice/settings";
 
 export const runtime = "nodejs";
 
@@ -10,7 +10,7 @@ export function GET() {
   return Response.json({ enabled: isVoiceConfigured() });
 }
 
-type Body = { mode?: string; messages?: unknown; registryId?: unknown; seed?: unknown };
+type Body = { mode?: string; messages?: unknown; registryId?: unknown; seed?: unknown; itemId?: unknown; intent?: unknown };
 
 /** Returns a short-lived token plus the agent Settings, so the browser can talk to Deepgram directly. */
 export async function POST(request: Request) {
@@ -22,11 +22,14 @@ export async function POST(request: Request) {
   let config: { settings: unknown; greeting: string };
 
   try {
-    if (body.mode === "edit") {
+    if (body.mode === "edit" || body.mode === "review") {
       if (typeof body.registryId !== "string") return Response.json({ error: "registryId is required." }, { status: 400 });
       const registry = await registryStore().getById(body.registryId);
       if (!registry || registry.ownerId !== ownerId) return Response.json({ error: "Registry not found." }, { status: 404 });
-      config = editSettings(registry);
+      config =
+        body.mode === "edit"
+          ? editSettings(registry)
+          : reviewSettings(registry, typeof body.itemId === "string" ? body.itemId : null, body.intent === "pick" ? "pick" : "review");
     } else {
       const messages: ChatMessage[] = (Array.isArray(body.messages) ? body.messages : [])
         .slice(-40)

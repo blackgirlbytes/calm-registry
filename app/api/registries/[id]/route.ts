@@ -1,6 +1,7 @@
 import { getOwnerId, unauthorized } from "@/lib/auth";
 import { registryStore, RegistryError } from "@/lib/registry-store";
-import type { ItemStatus } from "@/lib/types";
+import { findPick } from "@/lib/retail/aggregator";
+import { PICK_REASON, type ItemStatus } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -8,7 +9,8 @@ type RouteContext = { params: Promise<{ id: string }> };
 type Action =
   | { action: "status"; itemId: string; status: ItemStatus }
   | { action: "primary"; itemId: string; offerId: string }
-  | { action: "qty"; itemId: string; qty: number };
+  | { action: "qty"; itemId: string; qty: number }
+  | { action: "pick"; itemId: string; product: string };
 
 const STATUSES: ItemStatus[] = ["pending", "keep", "skip"];
 /** Matches the database check on registry_items.qty. */
@@ -56,6 +58,14 @@ export async function PATCH(request: Request, context: RouteContext) {
       await store.setItemQty(id, ownerId, input.itemId, input.qty);
     } else if (input?.action === "primary" && input.offerId) {
       await store.setPrimaryOffer(id, ownerId, input.itemId, input.offerId);
+    } else if (input?.action === "pick" && typeof input.product === "string" && input.product.trim()) {
+      const registry = await store.getById(id);
+      const item = registry?.ownerId === ownerId ? registry.items.find((i) => i.id === input.itemId) : null;
+      if (!registry || !item) return Response.json({ error: "That item is not on this registry." }, { status: 404 });
+      if (item.purchased) return Response.json({ error: "Someone already bought this one." }, { status: 409 });
+      const product = input.product.trim().replace(/\s+/g, " ").slice(0, 120);
+      const offers = await findPick(product, registry.profile.preferredRetailers);
+      await store.applyEdits(id, ownerId, [], [], [{ itemId: item.id, searchQuery: product, reason: PICK_REASON, offers }]);
     } else {
       return Response.json({ error: "Unknown action." }, { status: 400 });
     }

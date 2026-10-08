@@ -124,6 +124,21 @@ export function catalogSearch(query: string, maxPrice?: number): Offer[] | null 
     .map(toOffer);
 }
 
+const FILLER = new Set(["one", "that", "this", "from", "brand", "kind", "model", "type"]);
+
+/**
+ * Catalog products that are the specific thing a parent named, like "HALO BassiNest".
+ * Every word they said has to be in the brand or title, so naming a product never returns a different one.
+ */
+export function catalogPick(query: string): Offer[] {
+  const wanted = words(query).filter((w) => !FILLER.has(w));
+  if (!wanted.length) return [];
+  return CATALOG.filter((e) => {
+    const have = new Set(words(`${e.brand} ${e.title}`));
+    return wanted.every((w) => have.has(w));
+  }).map(toOffer);
+}
+
 /** The first catalog product of a kind, for showing a real example. */
 export function catalogExample(kind: string) {
   const entry = CATALOG.find((e) => e.kind === kind && e.imageUrl);

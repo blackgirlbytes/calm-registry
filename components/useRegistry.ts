@@ -66,5 +66,16 @@ export function useRegistry(id: string) {
     [id],
   );
 
-  return { registry, error, reload, setStatus, setPrimary, setQty };
+  /** Swaps in a product the parent already has in mind. Resolves to the updated item; throws if it fails. */
+  const pickItem = useCallback(
+    async (itemId: string, product: string) => {
+      await api(`/api/registries/${id}`, { method: "PATCH", body: JSON.stringify({ action: "pick", itemId, product }) });
+      const { registry } = await api<{ registry: Registry }>(`/api/registries/${id}`);
+      setRegistry(registry);
+      return registry.items.find((i) => i.id === itemId) ?? null;
+    },
+    [id],
+  );
+
+  return { registry, error, reload, setStatus, setPrimary, setQty, pickItem };
 }

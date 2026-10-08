@@ -1,7 +1,7 @@
 import "server-only";
 import type { Offer, RetailerId } from "../types";
 import { amazonProvider } from "./amazon";
-import { catalogSearch } from "./catalog";
+import { catalogPick, catalogSearch } from "./catalog";
 import { searchLinkOffer } from "./mock";
 import type { RetailerProvider, SearchFilters } from "./provider";
 import { targetProvider } from "./target";
@@ -67,6 +67,27 @@ export async function findOffers(query: string, preferred: RetailerId[], filters
   firsts.sort((a, b) => score(b, preferred) - score(a, preferred));
   rest.sort((a, b) => score(b, preferred) - score(a, preferred));
   return [...firsts, ...rest].slice(0, MAX_OFFERS);
+}
+
+/**
+ * Offers for a specific product the parent named. Unlike findOffers this never falls back to a
+ * different product of the same kind: it's the named product, or each store's search for it.
+ */
+export async function findPick(query: string, preferred: RetailerId[]) {
+  const live = await Promise.all(
+    PROVIDERS.filter((p) => p.isConfigured()).map((p) =>
+      withTimeout(p.search(query, {}), TIMEOUT_MS).catch((error) => {
+        console.warn(`[retail] ${p.id} search failed for "${query}"`, error);
+        return [] as Offer[];
+      }),
+    ),
+  );
+  const stores = PROVIDERS.map((p) => p.id).toSorted((a, b) => Number(preferred.includes(b)) - Number(preferred.includes(a)));
+  const byPreference = (a: Offer, b: Offer) => Number(preferred.includes(b.retailer)) - Number(preferred.includes(a.retailer));
+  const found = [...catalogPick(query).toSorted(byPreference), ...live.flat().toSorted((a, b) => score(b, preferred) - score(a, preferred))];
+  if (!found.length) return stores.map((id) => searchLinkOffer(id, query));
+  const seen = new Set<string>();
+  return found.filter((o) => !seen.has(o.url) && Boolean(seen.add(o.url))).slice(0, MAX_OFFERS);
 }
 
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>) {

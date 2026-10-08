@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { ItemCard } from "@/components/ItemCard";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { StartOverLink } from "@/components/RegistryActions";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
-import { CATEGORIES, type Category } from "@/lib/types";
+import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
+import { MicIcon, TalkButton, VoiceInvite, VoiceRoom } from "@/components/voice/VoiceControls";
+import { itemForVoice } from "@/lib/review-speech";
+import { CATEGORIES, PICK_REASON, type Category, type Registry, type RegistryItem } from "@/lib/types";
 
 export default function ReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -21,9 +24,29 @@ export default function ReviewPage({ params }: { params: Promise<{ id: string }>
 
 type Group = { category: Category; items: unknown[]; pending: Array<{ id: string }> };
 
+const firstPending = (registry: Registry, category: Category, except?: string) =>
+  registry.items.find((i) => i.category === category && i.status === "pending" && i.id !== except) ?? null;
+
+/** The next section with something left, going forward from `after` and wrapping around. */
+function nextCategory(registry: Registry, after: Category | null, except?: string) {
+  const start = after ? CATEGORIES.indexOf(after) + 1 : 0;
+  const order = [...CATEGORIES.slice(start), ...CATEGORIES.slice(0, start)];
+  return order.find((c) => firstPending(registry, c, except)) ?? null;
+}
+
 function Review({ id }: { id: string }) {
-  const { registry, error, setStatus, setPrimary } = useRegistry(id);
+  const { registry, error, setStatus, setPrimary, pickItem } = useRegistry(id);
   const [category, setCategory] = useState<Category | null>(null);
+  const [heard, setHeard] = useState<{ role: "user" | "assistant"; content: string } | null>(null);
+  const [voiceError, setVoiceError] = useState("");
+  const [finding, setFinding] = useState(false);
+
+  // Voice functions run between renders, so they read the latest registry and section from here.
+  const live = useRef({ registry, category });
+  useEffect(() => {
+    live.current = { registry, category };
+  });
+  const endAfterReply = useRef(false);
 
   const groups = useMemo(() => {
     if (!registry) return [];
@@ -32,6 +55,86 @@ function Review({ id }: { id: string }) {
       return { category: c, items, pending: items.filter((i) => i.status === "pending") };
     }).filter((g) => g.items.length > 0);
   }, [registry]);
+
+  const voiceEnabled = useVoiceEnabled();
+  const voice = useVoiceAgent({
+    onText(role, content) {
+      setHeard({ role, content });
+      if (role === "assistant" && endAfterReply.current) {
+        endAfterReply.current = false;
+        voice.stopAfterSpeaking();
+      }
+    },
+    onError: setVoiceError,
+    async onFunction(name, args) {
+      const { registry: r, category: c } = live.current;
+      if (!r) return "The registry isn't loaded yet.";
+      const item = c ? firstPending(r, c) : null;
+      const sections = () => groups.filter((g) => g.pending.length).map((g) => g.category);
+
+      if (name === "open_category") {
+        const wanted = CATEGORIES.find((x) => x.toLowerCase() === String(args.category ?? "").toLowerCase());
+        const first = wanted ? firstPending(r, wanted) : null;
+        if (!wanted || !first) return JSON.stringify({ result: "That section has nothing left to review.", sectionsLeft: sections() });
+        setCategory(wanted);
+        return JSON.stringify({ result: `Opened ${wanted}.`, onScreen: itemForVoice(first), next: "Describe the item and ask keep or skip." });
+      }
+      if (!item) {
+        return JSON.stringify({ result: "No item is showing right now.", sectionsLeft: sections(), next: "Ask which section to go through, then call open_category." });
+      }
+      if (name === "describe_item") return JSON.stringify({ onScreen: itemForVoice(item) });
+
+      if (name === "keep_item" || name === "skip_item") {
+        void setStatus(item.id, name === "keep_item" ? "keep" : "skip");
+        const did = `${name === "keep_item" ? "Kept" : "Skipped"} ${item.name.toLowerCase()}.`;
+        const same = firstPending(r, item.category, item.id);
+        if (same) return JSON.stringify({ result: did, onScreen: itemForVoice(same), next: "Describe the item and ask keep or skip." });
+        const moveTo = nextCategory(r, item.category, item.id);
+        if (!moveTo) {
+          endAfterReply.current = true;
+          return JSON.stringify({ result: `${did} Everything is reviewed.`, next: "Tell them they're all done and can share it from the registry page. Say a short goodbye." });
+        }
+        setCategory(moveTo);
+        return JSON.stringify({
+          result: `${did} That finishes ${item.category}.`,
+          nowIn: moveTo,
+          onScreen: itemForVoice(firstPending(r, moveTo, item.id)!),
+          next: `Say ${item.category} is done and you're on to ${moveTo}, then describe the item and ask keep or skip.`,
+        });
+      }
+      if (name === "choose_option") {
+        const offer = item.offers[Number(args.option)];
+        if (!offer || Number(args.option) < 1) return JSON.stringify({ result: "There's no option with that number.", onScreen: itemForVoice(item) });
+        void setPrimary(item.id, offer.id);
+        const offers = [offer, ...item.offers.filter((o) => o.id !== offer.id)];
+        return JSON.stringify({ result: "Switched.", onScreen: itemForVoice({ ...item, offers }), next: "Say what it is now and ask keep or skip." });
+      }
+      if (name === "use_their_pick") {
+        const product = String(args.product ?? "").trim();
+        if (!product) return "No product was given. Ask what they have in mind.";
+        setFinding(true);
+        try {
+          const updated = await pickItem(item.id, product);
+          if (!updated) return "That item is gone. Call describe_item.";
+          return JSON.stringify({ result: "Swapped in their pick.", onScreen: itemForVoice(updated), next: "Tell them what you found and ask keep or skip." });
+        } finally {
+          setFinding(false);
+        }
+      }
+      return `Unknown function ${name}.`;
+    },
+  });
+
+  function talk(intent: "review" | "pick") {
+    if (!registry) return;
+    const section = category && firstPending(registry, category) ? category : nextCategory(registry, null);
+    if (!section) return;
+    setCategory(section);
+    setVoiceError("");
+    setHeard(null);
+    endAfterReply.current = false;
+    void voice.start({ mode: "review", registryId: registry.id, itemId: firstPending(registry, section)?.id, intent });
+  }
 
   if (error && !registry) return <Status tone="error">{error}</Status>;
   if (!registry) return <Status>Opening your registry…</Status>;
@@ -83,15 +186,54 @@ function Review({ id }: { id: string }) {
           </div>
         )}
 
+        {voice.active && (
+          <VoiceRoom
+            status={voice.status}
+            muted={voice.muted}
+            onMute={voice.setMuted}
+            onStop={voice.stop}
+            stopLabel="Done"
+            level={voice.level}
+            heard={heard}
+            hint="Say keep or skip, or name one you'd rather have."
+          />
+        )}
+        {voiceError && (
+          <p role="alert" className="text-[13px] text-danger">
+            {voiceError}
+          </p>
+        )}
+
         {current ? (
           <ItemCard key={current.id} item={current} onChooseOffer={(offerId) => void setPrimary(current.id, offerId)}>
-            <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-3 bg-bg px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 md:static md:mx-0 md:px-0 md:pt-4 md:pb-0">
-              <button className="btn-quiet" onClick={() => void setStatus(current.id, "skip")}>
-                Skip
-              </button>
-              <button className="btn-primary" onClick={() => void setStatus(current.id, "keep")}>
-                Keep
-              </button>
+            <div className="sticky bottom-0 -mx-4 space-y-3 bg-bg px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 md:static md:mx-0 md:px-0 md:pt-4 md:pb-0">
+              {finding ? (
+                <p className="text-[14px] text-muted">Finding your pick…</p>
+              ) : (
+                current.reason === PICK_REASON && <PickNote item={current} />
+              )}
+              <div className="grid grid-cols-2 gap-3">
+                <button className="btn-quiet" onClick={() => void setStatus(current.id, "skip")}>
+                  Skip
+                </button>
+                <button className="btn-primary" onClick={() => void setStatus(current.id, "keep")}>
+                  Keep
+                </button>
+              </div>
+              <HaveOneInMind
+                key={current.id}
+                itemName={current.name}
+                onPick={async (product) => {
+                  setFinding(true);
+                  try {
+                    await pickItem(current.id, product);
+                  } finally {
+                    setFinding(false);
+                  }
+                }}
+                onSpeak={voiceEnabled && !voice.active ? () => talk("pick") : undefined}
+                onReviewByVoice={voiceEnabled && !voice.active ? () => talk("review") : undefined}
+              />
             </div>
           </ItemCard>
         ) : (
@@ -131,6 +273,21 @@ function Review({ id }: { id: string }) {
           progress is saved.
         </p>
       </div>
+
+      {voiceEnabled && progress < 1 && (
+        <div className="sm:max-w-md">
+          <VoiceInvite
+            title="Review by voice"
+            detail="I'll read each one. Say keep or skip, or name one you'd rather have."
+            onStart={() => talk("review")}
+          />
+        </div>
+      )}
+      {voiceError && (
+        <p role="alert" className="text-[13px] text-danger">
+          {voiceError}
+        </p>
+      )}
 
       <ul className="border-t border-line">
         {groups.map((g) => {
@@ -174,6 +331,97 @@ function Review({ id }: { id: string }) {
         <StartOverLink registry={registry} label="Not what you wanted? Start over with new answers" />
       </div>
     </main>
+  );
+}
+
+function PickNote({ item }: { item: RegistryItem }) {
+  const searchOnly = item.offers[0]?.externalId.startsWith("search:");
+  return (
+    <p className="text-[14px] text-note">
+      {searchOnly
+        ? "Family will get a store search for your pick, so they can find that exact one. Keep it?"
+        : "Here's your pick. Keep it?"}
+    </p>
+  );
+}
+
+/** For when the parent already knows the product they want: type it, or say it. */
+function HaveOneInMind({
+  itemName,
+  onPick,
+  onSpeak,
+  onReviewByVoice,
+}: {
+  itemName: string;
+  onPick: (product: string) => Promise<void>;
+  onSpeak?: () => void;
+  onReviewByVoice?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  if (!open) {
+    return (
+      <div className="flex items-center justify-between gap-4 text-[14px]">
+        <button className="link" onClick={() => setOpen(true)}>
+          I have one in mind
+        </button>
+        {onReviewByVoice && (
+          <button className="link inline-flex items-center gap-1.5" onClick={onReviewByVoice}>
+            <MicIcon className="h-4 w-4" />
+            Review by voice
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim()) return;
+    setBusy(true);
+    setError("");
+    try {
+      await onPick(text.trim());
+      setOpen(false);
+      setText("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "That didn't work. Try again?");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-2">
+      <label htmlFor="pick-input" className="block text-[14px] text-muted">
+        What would you like instead of the {itemName.toLowerCase()}?
+      </label>
+      <div className="flex gap-2">
+        <input
+          id="pick-input"
+          autoFocus
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Product name"
+          className="field min-w-0 flex-1"
+        />
+        {onSpeak && <TalkButton label="Say it out loud" onClick={onSpeak} disabled={busy} />}
+        <button className="btn-primary shrink-0 px-5" disabled={busy || !text.trim()}>
+          {busy ? "Finding…" : "Find"}
+        </button>
+      </div>
+      {error && (
+        <p role="alert" className="text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+      <button type="button" className="link text-[13px]" onClick={() => setOpen(false)} disabled={busy}>
+        Never mind
+      </button>
+    </form>
   );
 }
 
