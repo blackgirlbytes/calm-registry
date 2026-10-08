@@ -28,7 +28,7 @@ function money(amount: number) {
 }
 
 function Overview({ id }: { id: string }) {
-  const { registry, error, reload, setStatus } = useRegistry(id);
+  const { registry, error, reload, setStatus, setQty } = useRegistry(id);
 
   if (error && !registry) return <Status tone="error">{error}</Status>;
   if (!registry) return <Status>Opening your registry…</Status>;
@@ -73,7 +73,7 @@ function Overview({ id }: { id: string }) {
         <EditBar registry={registry} onApplied={reload} />
       </aside>
 
-      <ItemList registryId={id} items={kept} setStatus={setStatus} />
+      <ItemList registryId={id} items={kept} setStatus={setStatus} setQty={setQty} />
     </main>
   );
 }
@@ -96,10 +96,12 @@ function ItemList({
   registryId,
   items,
   setStatus,
+  setQty,
 }: {
   registryId: string;
   items: RegistryItem[];
   setStatus: (itemId: string, status: ItemStatus) => Promise<void>;
+  setQty: (itemId: string, qty: number) => Promise<void>;
 }) {
   const storageKey = `calm-registry:open:${registryId}`;
   const [open, setOpen] = useState<Category[]>([]);
@@ -232,9 +234,9 @@ function ItemList({
                 </button>
               </h2>
               {expanded && (
-                <ul id={panel} className="pb-2 xl:grid xl:grid-cols-2 xl:gap-x-10">
+                <ul id={panel} className="pb-2 md:grid md:grid-cols-2 md:gap-x-8 lg:grid-cols-1 xl:grid-cols-2 xl:gap-x-10 2xl:grid-cols-3 2xl:gap-x-8">
                   {items.map((item) => (
-                    <ItemRow key={item.id} item={item} onRemove={() => remove(item)} />
+                    <ItemRow key={item.id} item={item} onRemove={() => remove(item)} onQty={(qty) => void setQty(item.id, qty)} />
                   ))}
                 </ul>
               )}
@@ -258,46 +260,78 @@ function ItemList({
   );
 }
 
-/** Name, price, why it's here, and the product. Ratings belong to the keep-or-skip step, not this list. */
-function ItemRow({ item, onRemove }: { item: RegistryItem; onRemove: () => void }) {
+const MAX_QTY = 20;
+
+/**
+ * The product itself leads: its photo and name open the store page, with price and store right under it.
+ * The reason and ratings belong to the keep-or-skip step, not this list.
+ */
+function ItemRow({ item, onRemove, onQty }: { item: RegistryItem; onRemove: () => void; onQty: (qty: number) => void }) {
   const primary = item.offers[0];
+  // A search link stands in when no exact product was found, so the item's own name leads instead.
+  const product = primary && !primary.externalId.startsWith("search:") ? primary : null;
+  const store = primary ? RETAILER_LABELS[primary.retailer] : null;
+  const price = product?.price ?? null;
+  const link = { target: "_blank", rel: "noopener noreferrer sponsored" } as const;
+
   return (
     <li className="flex gap-4 border-t border-line py-4">
-      <ProductPhoto offer={primary} label={item.name} className="h-[72px] w-[72px] sm:h-20 sm:w-20" />
+      {primary ? (
+        <a href={primary.url} {...link} tabIndex={-1} aria-hidden className="shrink-0">
+          <ProductPhoto offer={primary} label={item.name} className="h-[72px] w-[72px] sm:h-20 sm:w-20" />
+        </a>
+      ) : (
+        <ProductPhoto offer={primary} label={item.name} className="h-[72px] w-[72px] sm:h-20 sm:w-20" />
+      )}
       <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="font-semibold">
-            {item.name}
-            {item.qty > 1 && <span className="font-normal text-muted"> ×{item.qty}</span>}
-          </p>
-          <p className="shrink-0 tabular-nums">{formatPrice(primary?.price ?? null)}</p>
-        </div>
-        <p className="line-clamp-2 font-serif text-[14px] leading-snug text-note italic">{item.reason}</p>
-        <div className="flex items-baseline justify-between gap-3 text-[13px]">
-          {primary ? (
-            <a
-              href={primary.url}
-              target="_blank"
-              rel="noopener noreferrer sponsored"
-              className="min-w-0 truncate text-muted hover:text-text"
-            >
-              {primary.title}, {RETAILER_LABELS[primary.retailer]}
-            </a>
-          ) : (
-            <span />
-          )}
+        {primary ? (
+          <a href={primary.url} {...link} className="line-clamp-2 leading-snug font-medium hover:underline hover:decoration-line hover:underline-offset-4">
+            {product?.title ?? item.name}
+          </a>
+        ) : (
+          <p className="leading-snug font-medium">{item.name}</p>
+        )}
+        <p className="text-[14px] text-muted tabular-nums">
+          {price !== null
+            ? `${formatPrice(price)}${item.qty > 1 ? " each" : ""} at ${store}`
+            : store
+              ? `Find it at ${store}`
+              : "No store yet"}
+        </p>
+        <div className="flex items-center gap-4 pt-1.5 text-[13px]">
           {item.purchased ? (
-            <span className="shrink-0 rounded-md bg-gift-bg px-2 py-0.5 text-gift">
-              Gifted{item.purchased.buyerName ? ` by ${item.purchased.buyerName}` : ""}
+            <span className="rounded-md bg-gift-bg px-2 py-0.5 text-gift">
+              {item.qty > 1 ? `${item.qty}, gifted` : "Gifted"}
+              {item.purchased.buyerName ? ` by ${item.purchased.buyerName}` : ""}
             </span>
           ) : (
-            <button className="shrink-0 text-muted hover:text-text" onClick={onRemove} aria-label={`Remove ${item.name}`}>
-              Remove
-            </button>
+            <>
+              <QtyStepper name={item.name} qty={item.qty} onChange={onQty} />
+              <button className="text-muted hover:text-text" onClick={onRemove} aria-label={`Remove ${item.name}`}>
+                Remove
+              </button>
+            </>
           )}
         </div>
       </div>
     </li>
+  );
+}
+
+function QtyStepper({ name, qty, onChange }: { name: string; qty: number; onChange: (qty: number) => void }) {
+  const step = "grid h-8 w-8 place-items-center rounded-full text-[17px] text-muted transition-colors hover:bg-raise hover:text-text disabled:opacity-30 disabled:hover:bg-transparent";
+  return (
+    <div role="group" aria-label={`How many ${name}`} className="flex items-center rounded-full border border-line">
+      <button className={step} onClick={() => onChange(qty - 1)} disabled={qty <= 1} aria-label={`One fewer ${name}`}>
+        −
+      </button>
+      <span className="w-7 text-center text-[14px] text-text tabular-nums" aria-live="polite">
+        {qty}
+      </span>
+      <button className={step} onClick={() => onChange(qty + 1)} disabled={qty >= MAX_QTY} aria-label={`One more ${name}`}>
+        +
+      </button>
+    </div>
   );
 }
 

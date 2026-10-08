@@ -7,9 +7,12 @@ export const runtime = "nodejs";
 type RouteContext = { params: Promise<{ id: string }> };
 type Action =
   | { action: "status"; itemId: string; status: ItemStatus }
-  | { action: "primary"; itemId: string; offerId: string };
+  | { action: "primary"; itemId: string; offerId: string }
+  | { action: "qty"; itemId: string; qty: number };
 
 const STATUSES: ItemStatus[] = ["pending", "keep", "skip"];
+/** Matches the database check on registry_items.qty. */
+const MAX_QTY = 20;
 
 export async function GET(request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -49,6 +52,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     const store = registryStore();
     if (input?.action === "status" && STATUSES.includes(input.status)) {
       await store.setItemStatus(id, ownerId, input.itemId, input.status);
+    } else if (input?.action === "qty" && Number.isInteger(input.qty) && input.qty >= 1 && input.qty <= MAX_QTY) {
+      await store.setItemQty(id, ownerId, input.itemId, input.qty);
     } else if (input?.action === "primary" && input.offerId) {
       await store.setPrimaryOffer(id, ownerId, input.itemId, input.offerId);
     } else {

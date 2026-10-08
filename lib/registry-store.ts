@@ -278,6 +278,15 @@ const supabaseStore = {
     });
   },
 
+  async setItemQty(registryId: string, ownerId: string, itemId: string, qty: number) {
+    await this.rpc("registry_set_item_qty", {
+      p_registry_id: registryId,
+      p_owner_id: ownerId,
+      p_item_id: itemId,
+      p_qty: qty,
+    });
+  },
+
   async setPrimaryOffer(registryId: string, ownerId: string, itemId: string, offerId: string) {
     await this.rpc("registry_set_primary_offer", {
       p_registry_id: registryId,
@@ -619,6 +628,11 @@ const localStore: typeof supabaseStore = {
   async setItemStatus(registryId, ownerId, itemId, status) {
     await mutateLocal(registryId, ownerId, (r) => {
       findItem(r, itemId).status = status;
+    });
+  },
+  async setItemQty(registryId, ownerId, itemId, qty) {
+    await mutateLocal(registryId, ownerId, (r) => {
+      findItem(r, itemId).qty = qty;
     });
   },
   async setPrimaryOffer(registryId, ownerId, itemId, offerId) {

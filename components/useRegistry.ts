@@ -31,6 +31,16 @@ export function useRegistry(id: string) {
     [id],
   );
 
+  const setQty = useCallback(
+    async (itemId: string, qty: number) => {
+      setRegistry((r) => r && { ...r, items: r.items.map((i) => (i.id === itemId ? { ...i, qty } : i)) });
+      await api(`/api/registries/${id}`, { method: "PATCH", body: JSON.stringify({ action: "qty", itemId, qty }) }).catch(
+        (e: Error) => setError(e.message),
+      );
+    },
+    [id],
+  );
+
   const setPrimary = useCallback(
     async (itemId: string, offerId: string) => {
       setRegistry(
@@ -56,5 +66,5 @@ export function useRegistry(id: string) {
     [id],
   );
 
-  return { registry, error, reload, setStatus, setPrimary };
+  return { registry, error, reload, setStatus, setPrimary, setQty };
 }
