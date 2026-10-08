@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { ResumeList } from "@/components/ResumeList";
+import { Waveform } from "@/components/voice/VoiceControls";
 import { formatPrice } from "@/lib/format";
 import { catalogExample } from "@/lib/retail/catalog";
 import { RETAILER_LABELS } from "@/lib/types";
+import { isVoiceConfigured } from "@/lib/voice/settings";
 
 const EXAMPLES = [
   { kind: "zip swaddle newborn", name: "Zip swaddle", reason: "Zips beat velcro and folding at 3am." },
@@ -31,7 +33,7 @@ export default function Home() {
             A baby registry you can finish tonight
           </h1>
           <p className="max-w-[46ch] text-[17px] text-muted lg:text-[19px]">
-            Answer a few questions. You get a complete registry of real products from Amazon, Target, and Walmart, with
+            Talk or type through a few questions. You get a complete registry of real products from Amazon, Target, and Walmart, with
             a note on why each one is there. Then review it one category at a time.
           </p>
           <Link href="/start" className="btn-primary w-full text-[17px] sm:w-auto sm:px-8">
@@ -63,13 +65,37 @@ export default function Home() {
         )}
       </div>
 
+      {isVoiceConfigured() && (
+        <section
+          aria-labelledby="voice"
+          className="mt-20 rounded-[28px] bg-room px-6 py-10 text-room-text sm:px-10 lg:mt-28 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] lg:items-center lg:gap-16 lg:px-14 lg:py-16"
+        >
+          <div className="space-y-4">
+            <h2 id="voice" className="max-w-[18ch] font-serif text-[30px] leading-tight font-semibold lg:text-[42px] lg:leading-[1.1]">
+              Talk it through instead of typing
+            </h2>
+            <p className="max-w-[44ch] text-room-muted lg:text-[17px]">
+              Tap the mic and answer out loud, the way you would tell a friend. Later, say what has changed and the
+              registry updates once you agree.
+            </p>
+          </div>
+          <div className="mt-10 lg:mt-0">
+            <Waveform className="h-20 w-full text-wave sm:h-24 lg:h-32" />
+            <p className="mt-6 font-serif text-[19px] leading-relaxed lg:text-[22px]">
+              Do you have a car, or will you mostly be walking?
+            </p>
+            <p className="mt-2 text-[14px] text-room-muted">You said: Mostly walking. We&rsquo;re on the third floor.</p>
+          </div>
+        </section>
+      )}
+
       <section aria-labelledby="how" className="mt-20 space-y-5 lg:mt-28">
         <h2 id="how" className="font-serif text-[21px] font-semibold">
           How it works
         </h2>
         <ol className="grid gap-4 lg:grid-cols-3 lg:gap-10">
           {[
-            "Chat for about three minutes about your space, budget, and plans.",
+            "Talk or type for a few minutes about your space, budget, and plans.",
             "Review your draft one category at a time. Keep or skip each item.",
             "Share one link. Family buys from whichever store they like and marks it as gifted.",
           ].map((step, i) => (

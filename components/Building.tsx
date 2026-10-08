@@ -6,7 +6,7 @@ import { CATEGORIES } from "@/lib/types";
 const BUILD_STEPS = CATEGORIES;
 const STEP_MS = 3500;
 
-/** The wait while the registry is built: a lamp warming up as each category gets filled. */
+/** The wait while the registry is built: morning light warming up as each category gets filled. */
 export function Building() {
   const [step, setStep] = useState(0);
 
@@ -21,7 +21,7 @@ export function Building() {
         aria-hidden
         className="pointer-events-none absolute top-1/2 left-1/2 -z-0 h-[140vmin] w-[140vmin] -translate-x-1/2 -translate-y-1/2 rounded-full"
         style={{
-          background: "radial-gradient(circle, rgb(237 190 116 / 0.22) 0%, rgb(237 190 116 / 0.06) 35%, transparent 65%)",
+          background: "radial-gradient(circle, rgb(226 219 242 / 0.85) 0%, rgb(241 219 229 / 0.5) 35%, transparent 65%)",
           animation: `lamp ${(BUILD_STEPS.length * STEP_MS) / 1000}s ease-out forwards`,
         }}
       />

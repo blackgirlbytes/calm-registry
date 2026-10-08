@@ -6,7 +6,7 @@ import { AnswersCard } from "@/components/AnswersCard";
 import { AuthGate } from "@/components/AuthGate";
 import { Building } from "@/components/Building";
 import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
-import { MicIcon, VoiceControls } from "@/components/voice/VoiceControls";
+import { TalkButton, VoiceInvite, VoiceRoom } from "@/components/voice/VoiceControls";
 import { api } from "@/lib/client";
 import { normalizeProfile } from "@/lib/profile";
 import { ParentProfileSchema, type ChatMessage, type IntakeDraft, type ParentProfile } from "@/lib/types";
@@ -336,15 +336,25 @@ function IntakeChat() {
       {!profile && (
       <div className="sticky bottom-0 -mx-4 space-y-3 bg-bg px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
         {voice.active ? (
-          <VoiceControls
+          <VoiceRoom
             status={voice.status}
             muted={voice.muted}
             onMute={voice.setMuted}
             onStop={voice.stop}
-            stopLabel="Switch to typing"
+            stopLabel="Type instead"
+            level={voice.level}
+            hint="Talk naturally. You can interrupt, and your answers appear above as you go."
           />
         ) : (
           <>
+            {voiceEnabled && answered === 0 && (
+              <VoiceInvite
+                title="Answer out loud"
+                detail="Most people finish in about five minutes. You can switch to typing anytime."
+                onStart={talk}
+                disabled={thinking || !draft}
+              />
+            )}
             {chips.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {chips.map((chip) => (
@@ -371,11 +381,8 @@ function IntakeChat() {
                 placeholder="Or type your own answer"
                 className="field"
               />
-              {voiceEnabled && !input.trim() ? (
-                <button type="button" className="btn-quiet shrink-0 px-4" onClick={talk} disabled={thinking || !draft}>
-                  <MicIcon />
-                  Talk instead
-                </button>
+              {voiceEnabled && answered > 0 && !input.trim() ? (
+                <TalkButton label="Answer out loud" onClick={talk} disabled={thinking || !draft} />
               ) : (
                 <button className="btn-primary shrink-0" disabled={thinking || !input.trim()}>
                   Send

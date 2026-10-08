@@ -10,7 +10,7 @@ import { RegistryDetails } from "@/components/RegistryDetails";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
 import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
-import { MicIcon, VoiceControls } from "@/components/voice/VoiceControls";
+import { TalkButton, VoiceInvite, VoiceRoom } from "@/components/voice/VoiceControls";
 import { api, formatPrice, totalPrice } from "@/lib/client";
 import { CATEGORIES, RETAILER_LABELS, type EditDiff, type Registry, type RegistryItem } from "@/lib/types";
 
@@ -318,11 +318,6 @@ function EditBar({ registry, onApplied }: { registry: Registry; onApplied: () =>
             </div>
           </div>
         )}
-        {voice.active && heard && (
-          <p className={`text-[14px] ${heard.role === "user" ? "text-muted" : "font-serif text-[16px]"}`}>
-            {heard.role === "user" ? `You: ${heard.content}` : heard.content}
-          </p>
-        )}
         {!voice.active && !diff && !text && (
           <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto px-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:flex-wrap lg:overflow-visible lg:px-0">
             {SUGGESTIONS.map((s) => (
@@ -346,8 +341,23 @@ function EditBar({ registry, onApplied }: { registry: Registry; onApplied: () =>
           </p>
         )}
         {voice.active ? (
-          <VoiceControls status={voice.status} muted={voice.muted} onMute={voice.setMuted} onStop={voice.stop} stopLabel="Done" />
+          <VoiceRoom
+            status={voice.status}
+            muted={voice.muted}
+            onMute={voice.setMuted}
+            onStop={voice.stop}
+            stopLabel="Done"
+            level={voice.level}
+            heard={heard}
+            hint="Say what's changed, like a hand-me-down stroller or a smaller budget."
+          />
         ) : (
+          <>
+          {voiceEnabled && !diff && (
+            <div className="hidden lg:block">
+              <VoiceInvite title="Say a change" detail="Tell it what's changed. Nothing updates until you agree." onStart={talk} disabled={busy} />
+            </div>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -366,14 +376,15 @@ function EditBar({ registry, onApplied }: { registry: Registry; onApplied: () =>
               className="field lg:basis-full"
             />
             {voiceEnabled && (
-              <button type="button" className="btn-quiet shrink-0 px-3.5" onClick={talk} disabled={busy} aria-label="Say a change out loud">
-                <MicIcon />
-              </button>
+              <div className="shrink-0 lg:hidden">
+                <TalkButton label="Say a change out loud" onClick={talk} disabled={busy} />
+              </div>
             )}
             <button className="btn-primary shrink-0 lg:flex-1" disabled={busy || !text.trim()}>
               {busy && !diff ? "Thinking…" : "Change"}
             </button>
           </form>
+          </>
         )}
       </div>
     </div>

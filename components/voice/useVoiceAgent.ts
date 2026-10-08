@@ -21,6 +21,10 @@ type Session = {
   ctx: AudioContext;
   stream: MediaStream | null;
   capture: AudioWorkletNode | null;
+  /** Taps on the mic and on the agent's playback, for drawing a live waveform. */
+  micMeter: AnalyserNode | null;
+  outMeter: AnalyserNode;
+  output: GainNode;
   sources: Set<AudioBufferSourceNode>;
   playhead: number;
   leftover: Uint8Array | null;
@@ -113,7 +117,7 @@ export function useVoiceAgent(options: VoiceAgentOptions) {
     buffer.copyToChannel(samples, 0);
     const src = s.ctx.createBufferSource();
     src.buffer = buffer;
-    src.connect(s.ctx.destination);
+    src.connect(s.output);
     const startAt = Math.max(s.ctx.currentTime + 0.02, s.playhead);
     src.start(startAt);
     s.playhead = startAt + buffer.duration;
@@ -204,11 +208,19 @@ export function useVoiceAgent(options: VoiceAgentOptions) {
       if (session.current) return;
       const ctx = new AudioContext();
       void ctx.resume();
+      const output = ctx.createGain();
+      const outMeter = ctx.createAnalyser();
+      outMeter.fftSize = 512;
+      output.connect(outMeter);
+      output.connect(ctx.destination);
       const s: Session = {
         ws: null,
         ctx,
         stream: null,
         capture: null,
+        micMeter: null,
+        outMeter,
+        output,
         sources: new Set(),
         playhead: 0,
         leftover: null,
@@ -243,7 +255,12 @@ export function useVoiceAgent(options: VoiceAgentOptions) {
         s.capture = capture;
         const silent = ctx.createGain();
         silent.gain.value = 0;
-        ctx.createMediaStreamSource(stream).connect(capture);
+        const mic = ctx.createMediaStreamSource(stream);
+        mic.connect(capture);
+        const micMeter = ctx.createAnalyser();
+        micMeter.fftSize = 512;
+        mic.connect(micMeter);
+        s.micMeter = micMeter;
         capture.connect(silent).connect(ctx.destination);
         capture.port.onmessage = (e: MessageEvent<ArrayBuffer>) => {
           if (s.ready && !s.muted && s.ws?.readyState === WebSocket.OPEN) s.ws.send(e.data);
@@ -293,6 +310,19 @@ export function useVoiceAgent(options: VoiceAgentOptions) {
     s.timers.push(window.setTimeout(stop, 8000));
   }, [stop]);
 
+  /** How loud the conversation is right now, from 0 to 1: the agent while it speaks, otherwise you. Cheap enough to call every frame. */
+  const level = useCallback(() => {
+    const s = session.current;
+    if (!s) return 0;
+    const meter = s.sources.size ? s.outMeter : s.muted ? null : s.micMeter;
+    if (!meter) return 0;
+    const samples = new Float32Array(meter.fftSize);
+    meter.getFloatTimeDomainData(samples);
+    let sum = 0;
+    for (const v of samples) sum += v * v;
+    return Math.min(1, Math.sqrt(sum / samples.length) * 5);
+  }, []);
+
   useEffect(() => {
     const onHide = () => document.visibilityState === "hidden" && stop();
     document.addEventListener("visibilitychange", onHide);
@@ -302,5 +332,5 @@ export function useVoiceAgent(options: VoiceAgentOptions) {
     };
   }, [stop]);
 
-  return { status, active: status !== "off", muted, start, stop, setMuted, stopAfterSpeaking };
+  return { status, active: status !== "off", muted, start, stop, setMuted, stopAfterSpeaking, level };
 }
