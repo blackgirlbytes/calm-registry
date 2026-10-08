@@ -1,0 +1,3 @@
+did i add redirect url correctly
+
+check Documents/work/software-factory for OPEN AI API key
