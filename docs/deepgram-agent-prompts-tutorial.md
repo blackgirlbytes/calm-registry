@@ -8,8 +8,6 @@ This guide follows the actual Entire sessions for Calm Registry. **“What the c
 
 Voice needs a [Deepgram](https://console.deepgram.com/) account with credits and an API key with **Member** permission or higher. That permission lets the app get a short pass for the browser. Your coding agent can handle the project setup, private key settings, and running the app. If it needs the key, provide it through a private secret setting rather than pasting it into chat.
 
-You do not need a separate OpenAI key for the live voice chat. Deepgram runs the voice agent's model. An OpenAI key is optional if you want custom registry items and typed AI chat. For a public website, the agent can also set up the database and private server settings.
-
 ## 1. Tell the agent why the app should exist
 
 **What the creator said:**
