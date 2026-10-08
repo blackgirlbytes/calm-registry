@@ -1,0 +1,7 @@
+Task: Apply one SQL migration to the production Supabase database for the Calm Registry app.
+
+Why: The registry overview page now has a − / + quantity stepper on each item. When it's clicked, the app calls a Postgres function, public.registry_set_item_qty. That function doesn't exist in production yet, so the stepper currently shows an error instead of saving.
+
+---
+
+Tasha and Dre

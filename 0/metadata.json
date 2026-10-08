@@ -1,0 +1,90 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4DBTWFNFRQ6FYYT7CJA71QQ",
+  "session_id": "5effab30-bcfb-4c55-83ce-4566d4474903",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T08:59:45.777872Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/deepgram-agent-prompts-tutorial.md"
+  ],
+  "agent": "Factory AI Droid",
+  "model": "",
+  "turn_id": "8e15f3e40584",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-08T08:59:45.767558Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 21,
+    "human_modified": 42,
+    "human_removed": 0,
+    "total_committed": 21,
+    "total_lines_changed": 63,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1800,
+      "user_lines_removed": 200,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "app/globals.css": 12,
+        "app/page.tsx": 24,
+        "app/start/page.tsx": 15,
+        "components/AnswersCard.tsx": 108,
+        "components/AppShell.tsx": 14,
+        "components/KeepOrSkipDemo.tsx": 90,
+        "components/RegistryActions.tsx": 1,
+        "lib/ai/edit.ts": 3,
+        "lib/ai/generate.ts": 220,
+        "lib/ai/intake.ts": 94,
+        "lib/ai/prompts.ts": 27,
+        "lib/answers.ts": 80,
+        "lib/intake-steps.ts": 138,
+        "lib/profile.ts": 87,
+        "lib/registry-store.ts": 7,
+        "lib/retail/catalog.ts": 2,
+        "lib/types.ts": 37,
+        "lib/voice/settings.ts": 20
+      },
+      "user_removed_per_file": {
+        "app/page.tsx": 39,
+        "app/start/page.tsx": 19,
+        "components/AnswersCard.tsx": 7,
+        "components/AppShell.tsx": 2,
+        "components/AuthGate.tsx": 1,
+        "components/RegistryActions.tsx": 1,
+        "lib/ai/edit.ts": 2,
+        "lib/ai/generate.ts": 35,
+        "lib/ai/intake.ts": 59,
+        "lib/ai/prompts.ts": 10,
+        "lib/answers.ts": 10,
+        "lib/profile.ts": 4,
+        "lib/registry-store.ts": 4,
+        "lib/types.ts": 3,
+        "lib/voice/settings.ts": 4
+      }
+    }
+  ]
+}
