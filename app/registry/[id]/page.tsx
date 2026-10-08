@@ -238,8 +238,12 @@ function EditBar({ registry, onApplied }: { registry: Registry; onApplied: () =>
           const changes = describe(next);
           return JSON.stringify(
             changes.length
-              ? { summary: next.summary, changes, next: "Read the summary back briefly and ask if you should make the change." }
-              : { summary: next.summary, changes, next: "Nothing would change. Tell them, and ask what else they'd like." },
+              ? {
+                  proposed: changes,
+                  summary: next.summary,
+                  next: "Nothing has changed yet. Describe the proposal as something you'd do, like \"I'd remove the stroller\", and ask if you should go ahead.",
+                }
+              : { proposed: [], summary: next.summary, next: "Nothing would change. Tell them, and ask what else they'd like." },
           );
         } finally {
           setBusy(false);

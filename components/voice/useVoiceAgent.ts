@@ -104,6 +104,8 @@ export function useVoiceAgent(options: VoiceAgentOptions) {
       bytes = bytes.slice(0, -1);
     }
     if (!bytes.length) return;
+    // Deepgram doesn't always send AgentStartedSpeaking, so audio itself marks the speaking state.
+    setStatus("speaking");
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const samples = new Float32Array(bytes.length / 2);
     for (let i = 0; i < samples.length; i++) samples[i] = view.getInt16(i * 2, true) / 0x8000;
