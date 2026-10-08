@@ -4,24 +4,11 @@ You do not have to write a technical plan for your coding agent. Start with the 
 
 This guide follows the actual Entire sessions for Calm Registry. **“What the creator said”** means the words came from those sessions. **“You could say”** is a new example for your own project, not a quote from the creator. The [code guide](deepgram-build-tutorial.md) explains the finished app.
 
-## Before the conversation: get your keys ready
+## What you need from Deepgram
 
-1. Create a project in the [Deepgram Console](https://console.deepgram.com/).
-2. Create a Deepgram API key with **Member** permission or higher. The app needs this to get a short-lived pass for the browser. Copy the key when Deepgram shows it.
-3. In the project, copy `.env.example` to `.env.local` and add `DEEPGRAM_API_KEY=your_key_here`. Keep the real key out of agent chats and Git commits.
-4. Run `npm install` and `npm run dev`. Open `http://localhost:3000/start`.
+Voice needs a [Deepgram](https://console.deepgram.com/) account with credits and an API key with **Member** permission or higher. That permission lets the app get a short pass for the browser. Your coding agent can handle the project setup, private key settings, and running the app. If it needs the key, provide it through a private secret setting rather than pasting it into chat.
 
-You do not need a separate OpenAI key for the live voice chat. Deepgram runs the voice agent's model. `OPENAI_API_KEY` is optional for typed chat and custom registry items. Locally, this app can use sample items and save lists on your computer. For a public website, also set up Supabase with the values in [`.env.example`](../.env.example) and put the Deepgram key in your host's private server settings.
-
-If you want to practice adding voice to this repo from scratch, start from the version before the voice feature:
-
-```bash
-git clone https://github.com/blackgirlbytes/calm-registry.git
-cd calm-registry
-git switch -c codex/deepgram-tutorial af809fa^
-npm install
-cp .env.example .env.local
-```
+You do not need a separate OpenAI key for the live voice chat. Deepgram runs the voice agent's model. An OpenAI key is optional if you want custom registry items and typed AI chat. For a public website, the agent can also set up the database and private server settings.
 
 ## 1. Tell the agent why the app should exist
 
@@ -85,9 +72,9 @@ Once the agent says the feature is ready, ask for a real check. Do not settle fo
 
 **You could say:**
 
-> Run the app and tell me the address to open. Try answering a question out loud, finishing the answers, and saying “we already have a stroller.” Show me that the stroller stays on the list until I say yes. Also try blocking the microphone. Tell me plainly what worked and what you could not test.
+> Please test the whole voice experience. Try answering a question out loud, finishing the answers, and saying “we already have a stroller.” Make sure the stroller stays on the list until I say yes. Also try blocking the microphone. Tell me plainly what worked and what you could not test.
 
-The creator also asked agents to run the app locally and report the port during development. A browser check matters here because microphone permission and sound playback cannot be proven by reading code alone.
+A browser check matters here because microphone permission and sound playback cannot be proven by reading code alone.
 
 ## What Deepgram does in the finished app
 
