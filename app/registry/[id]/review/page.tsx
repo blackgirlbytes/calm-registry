@@ -84,7 +84,7 @@ function Review({ id }: { id: string }) {
 
         {current ? (
           <ItemCard key={current.id} item={current} onChooseOffer={(offerId) => void setPrimary(current.id, offerId)}>
-            <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-3 bg-bg px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 lg:static lg:mx-0 lg:px-0 lg:pt-4 lg:pb-0">
+            <div className="sticky bottom-0 -mx-4 grid grid-cols-2 gap-3 bg-bg px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6 md:static md:mx-0 md:px-0 md:pt-4 md:pb-0">
               <button className="btn-quiet" onClick={() => void setStatus(current.id, "skip")}>
                 Skip
               </button>

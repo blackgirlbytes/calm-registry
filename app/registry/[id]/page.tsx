@@ -341,7 +341,7 @@ function EditBar({ registry, onApplied }: { registry: Registry; onApplied: () =>
               e.preventDefault();
               propose(text);
             }}
-            className="flex gap-2"
+            className="flex gap-2 lg:flex-wrap"
           >
             <label htmlFor="edit-request" className="sr-only">
               Describe a change
@@ -351,14 +351,14 @@ function EditBar({ registry, onApplied }: { registry: Registry; onApplied: () =>
               value={text}
               onChange={(e) => setText(e.target.value)}
               placeholder="We're getting a hand-me-down stroller"
-              className="field"
+              className="field lg:basis-full"
             />
             {voiceEnabled && (
               <button type="button" className="btn-quiet shrink-0 px-3.5" onClick={talk} disabled={busy} aria-label="Say a change out loud">
                 <MicIcon />
               </button>
             )}
-            <button className="btn-primary shrink-0" disabled={busy || !text.trim()}>
+            <button className="btn-primary shrink-0 lg:flex-1" disabled={busy || !text.trim()}>
               {busy && !diff ? "Thinking…" : "Change"}
             </button>
           </form>

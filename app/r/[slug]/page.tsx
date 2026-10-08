@@ -73,7 +73,7 @@ function Gifts({ slug }: { slug: string }) {
             <h2 id={`gift-${category}`} className="border-b border-line pb-3 font-serif text-[21px] font-semibold">
               {category}
             </h2>
-            <ul className="grid gap-x-8 sm:grid-cols-2 sm:gap-y-4 lg:grid-cols-3">
+            <ul className="grid gap-x-8 sm:grid-cols-2 sm:gap-y-4 lg:grid-cols-3 2xl:grid-cols-4">
               {items.map((item) => (
                 <GiftRow key={item.id} item={item} slug={slug} onBought={load} />
               ))}
@@ -87,7 +87,7 @@ function Gifts({ slug }: { slug: string }) {
           <h2 id="gift-done" className="border-b border-line pb-3 font-serif text-[21px] font-semibold">
             Already gifted
           </h2>
-          <ul className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {gifted.map((item) => (
               <li key={item.id} className="flex items-center gap-4 border-b border-line py-3 text-muted">
                 <ProductPhoto offer={item.offers[0]} label={item.name} className="h-12 w-12 opacity-70" />

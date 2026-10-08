@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${literata.variable} ${hanken.variable}`}>
       <body className="min-h-dvh font-sans antialiased">
-        <div className="mx-auto min-h-dvh max-w-7xl px-4 pb-16 sm:px-6 lg:px-10">{children}</div>
+        <div className="mx-auto min-h-dvh max-w-7xl px-4 pb-16 sm:px-6 lg:px-10 2xl:max-w-[1440px]">{children}</div>
       </body>
     </html>
   );

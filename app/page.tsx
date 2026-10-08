@@ -25,9 +25,9 @@ export default function Home() {
         <ResumeList />
       </div>
 
-      <div className="mt-14 grid gap-16 lg:mt-20 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-20">
+      <div className="mt-14 grid grid-cols-[minmax(0,1fr)] gap-16 lg:mt-20 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-20">
         <section className="space-y-6">
-          <h1 className="max-w-[16ch] font-serif text-[41px] leading-[1.1] font-semibold sm:text-[52px] lg:text-[64px] lg:leading-[1.05]">
+          <h1 className="max-w-[16ch] font-serif text-[41px] leading-[1.1] font-semibold sm:text-[52px] lg:text-[56px] lg:leading-[1.05] xl:text-[64px] 2xl:text-[76px]">
             A baby registry you can finish tonight
           </h1>
           <p className="max-w-[46ch] text-[17px] text-muted lg:text-[19px]">
@@ -44,10 +44,10 @@ export default function Home() {
             <h2 id="examples" className="font-serif text-[21px] font-semibold">
               Every item comes with a reason
             </h2>
-            <ul className="space-y-6">
+            <ul className="space-y-6 md:grid md:grid-cols-3 md:gap-6 md:space-y-0 lg:block lg:space-y-6">
               {examples.map(({ name, reason, offer }) => (
-                <li key={name} className="flex gap-4">
-                  <ProductPhoto offer={offer} label={name} className="h-24 w-24" />
+                <li key={name} className="flex gap-4 md:flex-col lg:flex-row">
+                  <ProductPhoto offer={offer} label={name} className="h-24 w-24 md:aspect-square md:h-auto md:w-full lg:h-24 lg:w-24" />
                   <div className="min-w-0 space-y-1">
                     <p className="font-semibold">{name}</p>
                     <p className="font-serif text-[15px] leading-snug text-note italic">{reason}</p>
