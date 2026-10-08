@@ -2,16 +2,20 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { AnswersCard } from "@/components/AnswersCard";
 import { AuthGate } from "@/components/AuthGate";
 import { Building } from "@/components/Building";
 import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
 import { MicIcon, VoiceControls } from "@/components/voice/VoiceControls";
 import { api } from "@/lib/client";
-import { ParentProfileSchema, type ChatMessage, type ParentProfile } from "@/lib/types";
+import { normalizeProfile } from "@/lib/profile";
+import { ParentProfileSchema, type ChatMessage, type IntakeDraft, type ParentProfile } from "@/lib/types";
 
 type Turn = { reply: string; chips: string[]; done: boolean; profile: ParentProfile | null };
 
-const STORAGE_KEY = "calm-registry:intake";
+/** Where answers lived before they were saved to the account; moved into a draft once. */
+const LEGACY_STORAGE_KEY = "calm-registry:intake";
+const TOTAL_QUESTIONS = 9;
 
 export default function StartPage() {
   return (
@@ -21,15 +25,35 @@ export default function StartPage() {
   );
 }
 
+/** Opens the draft named in the URL, or the one for ?registry= (starting over), ?from= (reusing answers), or ?new. */
+async function openDraft(): Promise<IntakeDraft> {
+  const params = new URLSearchParams(window.location.search);
+  const draftId = params.get("draft");
+  if (draftId) {
+    const found = await api<{ draft: IntakeDraft }>(`/api/drafts/${draftId}`).catch(() => null);
+    if (found) return found.draft;
+  }
+  const registryId = params.get("registry");
+  const from = params.get("from");
+  const body = registryId ? { registryId } : from ? { seedFrom: from } : { fresh: params.has("new") };
+  return (await api<{ draft: IntakeDraft }>("/api/drafts", { method: "POST", body: JSON.stringify(body) })).draft;
+}
+
 function IntakeChat() {
   const router = useRouter();
+  const [draft, setDraft] = useState<IntakeDraft | null>(null);
+  const [registryTitle, setRegistryTitle] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [chips, setChips] = useState<string[]>([]);
+  const [profile, setProfile] = useState<ParentProfile | null>(null);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [building, setBuilding] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState(false);
+  const [editing, setEditing] = useState<{ index: number; text: string } | null>(null);
   const [error, setError] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
+  const loaded = useRef(false);
   const voiceEnabled = useVoiceEnabled();
   const voice = useVoiceAgent({
     onText(role, content, isGreeting) {
@@ -45,38 +69,67 @@ function IntakeChat() {
         return `The profile isn't complete. Problems with: ${fields}. Ask about those, then call finish_intake again.`;
       }
       voice.stopAfterSpeaking();
-      void build(parsed.data);
-      return "Success. The registry is being built now.";
+      setChips([]);
+      setProfile(normalizeProfile(parsed.data));
+      return "Success. Their answers are on screen for them to check before building.";
     },
     onError: setError,
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const { messages, chips } = JSON.parse(saved) as { messages: ChatMessage[]; chips: string[] };
-      setMessages(messages);
-      setChips(chips);
-      return;
-    }
-    void send([]);
+    void (async () => {
+      try {
+        const opened = await openDraft();
+        let { messages, chips } = opened;
+        const legacy = localStorage.getItem(LEGACY_STORAGE_KEY);
+        if (legacy && !messages.length && !opened.registryId && !opened.seed) {
+          ({ messages, chips } = JSON.parse(legacy) as { messages: ChatMessage[]; chips: string[] });
+        }
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
+        router.replace(`/start?draft=${opened.id}`);
+        setDraft(opened);
+        setMessages(messages);
+        setChips(chips);
+        setProfile(opened.profile);
+        loaded.current = true;
+        if (opened.registryId) {
+          const { registry } = await api<{ registry: { title: string } }>(`/api/registries/${opened.registryId}`);
+          setRegistryTitle(registry.title);
+        }
+        if (!messages.length) await send([], opened);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Your answers couldn't be loaded.");
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Saved to the account shortly after each change, so leaving midway never loses answers.
   useEffect(() => {
-    if (messages.length) localStorage.setItem(STORAGE_KEY, JSON.stringify({ messages, chips }));
-    bottom.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, chips, thinking]);
+    if (!draft || !loaded.current) return;
+    const timer = setTimeout(() => {
+      // Building or cancelling deletes the draft; a save landing after that would fail.
+      if (!loaded.current) return;
+      void api(`/api/drafts/${draft.id}`, { method: "PUT", body: JSON.stringify({ messages, chips, profile }) }).catch(() => undefined);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [draft, messages, chips, profile]);
 
-  async function send(history: ChatMessage[]) {
+  useEffect(() => {
+    bottom.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, chips, thinking, profile]);
+
+  async function send(history: ChatMessage[], current = draft) {
     setThinking(true);
     setError("");
     try {
-      const turn = await api<Turn>("/api/intake", { method: "POST", body: JSON.stringify({ messages: history }) });
-      const next = [...history, { role: "assistant" as const, content: turn.reply }];
-      setMessages(next);
-      setChips(turn.chips);
-      if (turn.done && turn.profile) await build(turn.profile);
+      const turn = await api<Turn>("/api/intake", {
+        method: "POST",
+        body: JSON.stringify({ messages: history, seed: current?.seed ?? undefined }),
+      });
+      setMessages([...history, { role: "assistant" as const, content: turn.reply }]);
+      setChips(turn.done ? [] : turn.chips);
+      if (turn.done && turn.profile) setProfile(turn.profile);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -84,13 +137,19 @@ function IntakeChat() {
     }
   }
 
-  async function build(profile: ParentProfile) {
+  async function build() {
+    if (!profile || !draft) return;
+    voice.stop();
+    loaded.current = false;
     setBuilding(true);
     try {
-      const { id } = await api<{ id: string }>("/api/registries", { method: "POST", body: JSON.stringify({ profile }) });
-      localStorage.removeItem(STORAGE_KEY);
+      const { id } = await api<{ id: string }>("/api/registries", {
+        method: "POST",
+        body: JSON.stringify({ profile, draftId: draft.id, registryId: draft.registryId ?? undefined }),
+      });
       router.push(`/registry/${id}/review`);
     } catch (e) {
+      loaded.current = true;
       setBuilding(false);
       setError(e instanceof Error ? e.message : "Your registry couldn't be built. Try again.");
     }
@@ -106,41 +165,138 @@ function IntakeChat() {
     void send(history);
   }
 
+  /** Changing an earlier answer drops everything after it, so the chat picks up from there. */
+  function saveEdit() {
+    if (!editing || thinking) return;
+    const text = editing.text.trim();
+    if (!text) return;
+    voice.stop();
+    const history = [...messages.slice(0, editing.index), { role: "user" as const, content: text }];
+    setEditing(null);
+    setProfile(null);
+    setMessages(history);
+    setChips([]);
+    void send(history);
+  }
+
   function talk() {
     setError("");
     setChips([]);
-    void voice.start({ mode: "intake", messages });
+    void voice.start({ mode: "intake", messages, seed: draft?.seed ?? undefined });
   }
 
   function restart() {
     voice.stop();
-    localStorage.removeItem(STORAGE_KEY);
+    setConfirmRestart(false);
+    setEditing(null);
+    setProfile(null);
     setMessages([]);
+    setChips([]);
     void send([]);
+  }
+
+  async function cancelStartOver() {
+    if (!draft?.registryId) return;
+    voice.stop();
+    loaded.current = false;
+    await api(`/api/drafts/${draft.id}`, { method: "DELETE" }).catch(() => undefined);
+    router.push(`/registry/${draft.registryId}`);
   }
 
   if (building) return <Building />;
 
   const answered = messages.filter((m) => m.role === "user").length;
+  const lastAnswer = messages.findLastIndex((m) => m.role === "user");
+  const left = TOTAL_QUESTIONS - Object.keys(draft?.seed ?? {}).length - answered;
 
   return (
     <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
     <IntakeGuide answered={answered} />
     <div className="flex min-h-dvh flex-col pt-5 lg:pt-10">
-      <header className="mb-8 flex items-center justify-between text-[13px]">
-        <span className="text-muted">
-          {9 - answered > 1 ? `About ${9 - answered} questions left` : "Almost done"}
-        </span>
-        <button onClick={restart} className="link">
-          Start over
-        </button>
+      <header className="mb-8 space-y-2 text-[13px]">
+        {draft?.registryId && (
+          <div className="flex items-center justify-between gap-4">
+            <span className="min-w-0 truncate">Starting over: {registryTitle || "your registry"}</span>
+            <button onClick={() => void cancelStartOver()} className="link shrink-0">
+              Keep my current list
+            </button>
+          </div>
+        )}
+        {confirmRestart ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface px-4 py-3" role="alert">
+            <span>Clear all your answers and start again?</span>
+            <span className="flex gap-2">
+              <button className="btn-quiet px-3 py-1.5 text-[13px]" onClick={() => setConfirmRestart(false)}>
+                Keep them
+              </button>
+              <button className="btn-primary px-3 py-1.5 text-[13px]" onClick={restart}>
+                Clear answers
+              </button>
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between">
+            <span className="text-muted">
+              {profile ? "Check your answers" : left > 1 ? `About ${left} questions left` : "Almost done"}
+            </span>
+            {answered > 0 && (
+              <button onClick={() => setConfirmRestart(true)} className="link">
+                Start over
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       <div className="flex-1 space-y-6" aria-live="polite">
         {messages.map((m, i) =>
           m.role === "user" ? (
-            <div key={i} className="flex justify-end">
-              <p className="max-w-[80%] rounded-2xl rounded-br-md bg-surface px-4 py-2.5 lg:max-w-[60%] lg:px-5 lg:py-3 lg:text-[17px]">{m.content}</p>
+            <div key={i} className="flex flex-col items-end gap-1">
+              {editing?.index === i ? (
+                <form
+                  className="w-full max-w-[80%] space-y-2 lg:max-w-[60%]"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    saveEdit();
+                  }}
+                >
+                  <label htmlFor="edit-answer" className="sr-only">
+                    Change your answer
+                  </label>
+                  <textarea
+                    id="edit-answer"
+                    autoFocus
+                    rows={2}
+                    value={editing.text}
+                    onChange={(e) => setEditing({ index: i, text: e.target.value })}
+                    className="field resize-none"
+                  />
+                  <p className="text-[13px] text-muted">The questions after this one will be asked again.</p>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" className="btn-quiet px-4 py-2" onClick={() => setEditing(null)}>
+                      Cancel
+                    </button>
+                    <button className="btn-primary px-4 py-2" disabled={!editing.text.trim() || thinking}>
+                      Save answer
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    disabled={thinking || voice.active}
+                    onClick={() => setEditing({ index: i, text: m.content })}
+                    aria-label={`Change your answer: ${m.content}`}
+                    className="max-w-[80%] rounded-2xl rounded-br-md bg-surface px-4 py-2.5 text-left transition-colors hover:bg-raise lg:max-w-[60%] lg:px-5 lg:py-3 lg:text-[17px]"
+                  >
+                    {m.content}
+                  </button>
+                  {i === lastAnswer && !thinking && !voice.active && (
+                    <span className="text-[12px] text-muted">Tap any answer to change it</span>
+                  )}
+                </>
+              )}
             </div>
           ) : (
             <p key={i} className="max-w-[65ch] font-serif text-[19px] leading-relaxed lg:text-[22px]">
@@ -149,10 +305,27 @@ function IntakeChat() {
           ),
         )}
         {thinking && <p className="font-serif text-[19px] text-muted">…</p>}
+        {profile && !thinking && (
+          <AnswersCard
+            profile={profile}
+            onChange={setProfile}
+            title="Here's what I heard"
+            intro="Tap anything that's not quite right. Nothing is built until you say so."
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <button className="link text-left text-[13px]" onClick={() => setProfile(null)}>
+                Something missing? Keep chatting
+              </button>
+              <button className="btn-primary sm:px-8" onClick={() => void build()}>
+                {draft?.registryId ? "Rebuild my registry" : "Build my registry"}
+              </button>
+            </div>
+          </AnswersCard>
+        )}
         {error && (
           <p role="alert" className="text-[14px] text-danger">
             {error}{" "}
-            <button className="underline underline-offset-4" onClick={() => void send(messages)}>
+            <button className="underline underline-offset-4" onClick={() => void (profile ? build() : send(messages))}>
               Try again
             </button>
           </p>
@@ -160,6 +333,7 @@ function IntakeChat() {
         <div ref={bottom} />
       </div>
 
+      {!profile && (
       <div className="sticky bottom-0 -mx-4 space-y-3 bg-bg px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
         {voice.active ? (
           <VoiceControls
@@ -198,7 +372,7 @@ function IntakeChat() {
                 className="field"
               />
               {voiceEnabled && !input.trim() ? (
-                <button type="button" className="btn-quiet shrink-0 px-4" onClick={talk} disabled={thinking}>
+                <button type="button" className="btn-quiet shrink-0 px-4" onClick={talk} disabled={thinking || !draft}>
                   <MicIcon />
                   Talk instead
                 </button>
@@ -211,6 +385,7 @@ function IntakeChat() {
           </>
         )}
       </div>
+      )}
     </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { getOwnerId, unauthorized } from "@/lib/auth";
+import { parseSeed } from "@/lib/profile";
 import { registryStore } from "@/lib/registry-store";
 import type { ChatMessage } from "@/lib/types";
 import { AGENT_URL, editSettings, grantToken, intakeSettings, isVoiceConfigured } from "@/lib/voice/settings";
@@ -9,7 +10,7 @@ export function GET() {
   return Response.json({ enabled: isVoiceConfigured() });
 }
 
-type Body = { mode?: string; messages?: unknown; registryId?: unknown };
+type Body = { mode?: string; messages?: unknown; registryId?: unknown; seed?: unknown };
 
 /** Returns a short-lived token plus the agent Settings, so the browser can talk to Deepgram directly. */
 export async function POST(request: Request) {
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
           content: String(m?.content ?? "").slice(0, 1000),
         }))
         .filter((m) => m.content.trim());
-      config = intakeSettings(messages);
+      config = intakeSettings(messages, parseSeed(body.seed));
     }
     return Response.json({ token: await grantToken(), url: AGENT_URL, ...config });
   } catch (error) {

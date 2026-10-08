@@ -5,16 +5,23 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   AddressRequest,
   AddressRequestStatus,
+  ChatMessage,
   GeneratedItem,
+  IntakeDraft,
   ItemStatus,
   Offer,
   ParentProfile,
+  ProfileSeed,
   Registry,
   RegistryDetails,
   RegistryItem,
   RetailerId,
   ShippingAddress,
 } from "./types";
+
+export type DraftContent = { messages: ChatMessage[]; chips: string[]; profile: ParentProfile | null };
+/** fresh clears any saved answers; seed also clears them and carries over answers from another registry. */
+export type OpenDraftOptions = { fresh?: boolean; seed?: ProfileSeed | null };
 
 export type AddressRequestInput = { name: string; contact: string; message: string };
 
@@ -135,6 +142,34 @@ function toAddressRequest(row: AddressRequestRow): AddressRequest {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type DraftRow = {
+  id: string;
+  registry_id: string | null;
+  messages: ChatMessage[];
+  chips: string[];
+  profile: ParentProfile | null;
+  seed: ProfileSeed | null;
+  updated_at: string;
+};
+
+const DRAFT_SELECT = "id, registry_id, messages, chips, profile, seed, updated_at";
+
+function toDraft(row: DraftRow): IntakeDraft {
+  return {
+    id: row.id,
+    registryId: row.registry_id,
+    messages: row.messages ?? [],
+    chips: row.chips ?? [],
+    profile: row.profile,
+    seed: row.seed,
+    updatedAt: row.updated_at,
+  };
+}
+
+function profileColumns(profile: ParentProfile) {
+  return { p_profile: profile, p_preferred_retailers: profile.preferredRetailers, p_due_date: profile.dueDate };
+}
 
 function toRegistry(row: RegistryRow): Registry {
   const items = [...row.registry_items]
@@ -346,6 +381,96 @@ const supabaseStore = {
     const address = status === "approved" ? await this.getAddress(data.registry_id as string) : null;
     return { status, address };
   },
+
+  /** Replaces every item nobody has bought; title, names, note, address, and purchases stay. */
+  async rebuild(registryId: string, ownerId: string, profile: ParentProfile, items: NewItem[]) {
+    await this.rpc("registry_rebuild", {
+      p_registry_id: registryId,
+      p_owner_id: ownerId,
+      ...profileColumns(profile),
+      p_items: items,
+    });
+  },
+
+  async updateProfile(registryId: string, ownerId: string, profile: ParentProfile) {
+    await this.rpc("registry_update_profile", { p_registry_id: registryId, p_owner_id: ownerId, ...profileColumns(profile) });
+  },
+
+  async deleteRegistry(registryId: string, ownerId: string) {
+    await this.rpc("registry_delete", { p_registry_id: registryId, p_owner_id: ownerId });
+  },
+
+  async listDrafts(ownerId: string): Promise<IntakeDraft[]> {
+    const { data, error } = await getSupabaseAdmin()
+      .from("intake_drafts")
+      .select(DRAFT_SELECT)
+      .eq("owner_id", ownerId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new RegistryError(friendlyError(error.message));
+    return ((data ?? []) as DraftRow[]).map(toDraft);
+  },
+
+  async getDraft(draftId: string, ownerId: string): Promise<IntakeDraft | null> {
+    if (!UUID.test(draftId)) return null;
+    const { data, error } = await getSupabaseAdmin()
+      .from("intake_drafts")
+      .select(DRAFT_SELECT)
+      .eq("id", draftId)
+      .eq("owner_id", ownerId)
+      .maybeSingle();
+    if (error) throw new RegistryError(friendlyError(error.message));
+    return data ? toDraft(data as DraftRow) : null;
+  },
+
+  /** Callers must check that registryId belongs to ownerId. Resumes the existing draft for that target if there is one. */
+  async openDraft(ownerId: string, registryId: string | null, options: OpenDraftOptions = {}): Promise<IntakeDraft> {
+    const db = getSupabaseAdmin();
+    const find = () => {
+      const query = db.from("intake_drafts").select(DRAFT_SELECT).eq("owner_id", ownerId);
+      return (registryId ? query.eq("registry_id", registryId) : query.is("registry_id", null)).maybeSingle();
+    };
+    const reset = options.fresh || options.seed !== undefined;
+    const blank = { messages: [], chips: [], profile: null, seed: options.seed ?? null, updated_at: new Date().toISOString() };
+
+    const existing = await find();
+    if (existing.error) throw new RegistryError(friendlyError(existing.error.message));
+    if (existing.data && !reset) return toDraft(existing.data as DraftRow);
+    if (existing.data) {
+      const { data, error } = await db.from("intake_drafts").update(blank).eq("id", existing.data.id).select(DRAFT_SELECT).single();
+      if (error) throw new RegistryError(friendlyError(error.message));
+      return toDraft(data as DraftRow);
+    }
+
+    const { data, error } = await db
+      .from("intake_drafts")
+      .insert({ owner_id: ownerId, registry_id: registryId, ...blank })
+      .select(DRAFT_SELECT)
+      .single();
+    if (!error) return toDraft(data as DraftRow);
+    // Two tabs opening at once: the other insert won, so use its draft.
+    if (error.code === "23505") {
+      const again = await find();
+      if (again.data) return toDraft(again.data as DraftRow);
+    }
+    throw new RegistryError(friendlyError(error.message));
+  },
+
+  async saveDraft(draftId: string, ownerId: string, content: DraftContent) {
+    const { data, error } = await getSupabaseAdmin()
+      .from("intake_drafts")
+      .update({ ...content, updated_at: new Date().toISOString() })
+      .eq("id", draftId)
+      .eq("owner_id", ownerId)
+      .select("id");
+    if (error) throw new RegistryError(friendlyError(error.message));
+    if (!data?.length) throw new RegistryError("Those answers were already used or cleared.");
+  },
+
+  async deleteDraft(draftId: string, ownerId: string) {
+    if (!UUID.test(draftId)) return;
+    const { error } = await getSupabaseAdmin().from("intake_drafts").delete().eq("id", draftId).eq("owner_id", ownerId);
+    if (error) throw new RegistryError(friendlyError(error.message));
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -394,6 +519,26 @@ async function requireOwnedLocal(registryId: string, ownerId: string) {
   const registry = (await readLocal()).find((r) => r.id === registryId && r.ownerId === ownerId);
   if (!registry) throw new RegistryError("Registry not found.");
   return registry;
+}
+
+const DRAFTS_FILE = path.join(process.cwd(), ".data", "drafts.json");
+type LocalDraft = IntakeDraft & { ownerId: string };
+
+async function readDrafts(): Promise<LocalDraft[]> {
+  try {
+    return JSON.parse(await fs.readFile(DRAFTS_FILE, "utf8")) as LocalDraft[];
+  } catch {
+    return [];
+  }
+}
+
+async function writeDrafts(drafts: LocalDraft[]) {
+  await fs.mkdir(path.dirname(DRAFTS_FILE), { recursive: true });
+  await fs.writeFile(DRAFTS_FILE, JSON.stringify(drafts, null, 2));
+}
+
+function publicDraft({ ownerId: _o, ...draft }: LocalDraft): IntakeDraft {
+  return draft;
 }
 
 function publicRequest({ registryId: _r, tokenHash: _t, ...request }: LocalRequest): AddressRequest {
@@ -564,6 +709,59 @@ const localStore: typeof supabaseStore = {
     const request = data.requests.find((q) => q.id === requestId && q.tokenHash === tokenHash && q.registryId === registry?.id);
     if (!request) return null;
     return { status: request.status, address: request.status === "approved" ? (data.addresses[request.registryId] ?? null) : null };
+  },
+  async rebuild(registryId, ownerId, profile, items) {
+    await mutateLocal(registryId, ownerId, (r) => {
+      r.items = r.items.filter((i) => i.purchased);
+      Object.assign(r, { profile, preferredRetailers: profile.preferredRetailers, dueDate: profile.dueDate });
+      const start = r.items.reduce((max, i) => Math.max(max, i.position), -1) + 1;
+      r.items.push(...items.map((item, i) => toLocalItem(item, start + i)));
+    });
+  },
+  async updateProfile(registryId, ownerId, profile) {
+    await mutateLocal(registryId, ownerId, (r) =>
+      Object.assign(r, { profile, preferredRetailers: profile.preferredRetailers, dueDate: profile.dueDate }),
+    );
+  },
+  async deleteRegistry(registryId, ownerId) {
+    await requireOwnedLocal(registryId, ownerId);
+    await writeLocal((await readLocal()).filter((r) => r.id !== registryId));
+    const data = await readPrivate();
+    delete data.addresses[registryId];
+    data.requests = data.requests.filter((q) => q.registryId !== registryId);
+    await writePrivate(data);
+    await writeDrafts((await readDrafts()).filter((d) => d.registryId !== registryId));
+  },
+  async listDrafts(ownerId) {
+    return (await readDrafts())
+      .filter((d) => d.ownerId === ownerId)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map(publicDraft);
+  },
+  async getDraft(draftId, ownerId) {
+    const draft = (await readDrafts()).find((d) => d.id === draftId && d.ownerId === ownerId);
+    return draft ? publicDraft(draft) : null;
+  },
+  async openDraft(ownerId, registryId, options = {}) {
+    const drafts = await readDrafts();
+    const existing = drafts.find((d) => d.ownerId === ownerId && d.registryId === registryId);
+    const reset = options.fresh || options.seed !== undefined;
+    if (existing && !reset) return publicDraft(existing);
+    const blank = { messages: [], chips: [], profile: null, seed: options.seed ?? null, updatedAt: new Date().toISOString() };
+    const draft: LocalDraft = existing ? Object.assign(existing, blank) : { id: crypto.randomUUID(), ownerId, registryId, ...blank };
+    if (!existing) drafts.push(draft);
+    await writeDrafts(drafts);
+    return publicDraft(draft);
+  },
+  async saveDraft(draftId, ownerId, content) {
+    const drafts = await readDrafts();
+    const draft = drafts.find((d) => d.id === draftId && d.ownerId === ownerId);
+    if (!draft) throw new RegistryError("Those answers were already used or cleared.");
+    Object.assign(draft, content, { updatedAt: new Date().toISOString() });
+    await writeDrafts(drafts);
+  },
+  async deleteDraft(draftId, ownerId) {
+    await writeDrafts((await readDrafts()).filter((d) => !(d.id === draftId && d.ownerId === ownerId)));
   },
 };
 

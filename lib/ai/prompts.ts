@@ -18,6 +18,13 @@ Rules:
 - dueDate is ISO yyyy-mm-dd or null. Due dates are always in the future (within about 10 months).
   If they only name a month, use the 15th of the NEXT time that month occurs after today.`;
 
+/** For a new registry that starts from another registry's answers. */
+export function seedGuidance(seed: object) {
+  return `- These answers carried over from their previous registry: ${JSON.stringify(seed)}.
+  Treat them as known and don't ask about them again unless the parent brings them up; use them in the profile.
+  Still ask about the due date, names, and what they already have, since those change from baby to baby.`;
+}
+
 export const VOICE_RULES = `You are speaking out loud, not writing.
 - Use short, natural spoken sentences. One question at a time.
 - Never use lists, bullet points, emoji, markdown, URLs, or symbols like "$" or "%". Say "dollars" and "percent".

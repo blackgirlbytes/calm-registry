@@ -5,6 +5,7 @@ import { use, useMemo, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { ItemCard } from "@/components/ItemCard";
 import { ProductPhoto } from "@/components/ProductPhoto";
+import { StartOverLink } from "@/components/RegistryActions";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
 import { CATEGORIES, type Category } from "@/lib/types";
@@ -168,6 +169,10 @@ function Review({ id }: { id: string }) {
           See and share your registry
         </Link>
       )}
+
+      <div className="sm:max-w-md">
+        <StartOverLink registry={registry} label="Not what you wanted? Start over with new answers" />
+      </div>
     </main>
   );
 }

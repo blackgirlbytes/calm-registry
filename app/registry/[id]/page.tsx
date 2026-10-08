@@ -5,6 +5,7 @@ import { use, useRef, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { ProductRating } from "@/components/ProductRating";
+import { DeleteRegistry, StartOverLink, YourAnswers } from "@/components/RegistryActions";
 import { RegistryDetails } from "@/components/RegistryDetails";
 import { Status } from "@/components/Status";
 import { useRegistry } from "@/components/useRegistry";
@@ -52,6 +53,7 @@ function Overview({ id }: { id: string }) {
         </header>
 
         <RegistryDetails registry={registry} onSaved={reload} />
+        <YourAnswers registry={registry} onSaved={reload} />
 
         {pending > 0 && (
           <div className="flex items-center justify-between gap-4 rounded-xl bg-surface px-5 py-4">
@@ -91,6 +93,11 @@ function Overview({ id }: { id: string }) {
             </section>
           );
         })}
+
+        <section aria-label="Start over or delete" className="flex flex-col items-start gap-3 border-t border-line pt-6 sm:max-w-md">
+          <StartOverLink registry={registry} />
+          <DeleteRegistry registry={registry} />
+        </section>
       </div>
     </main>
   );

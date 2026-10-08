@@ -1,7 +1,6 @@
 import { proposeEdit } from "@/lib/ai/edit";
+import { applyDiff } from "@/lib/apply-diff";
 import { getOwnerId, unauthorized } from "@/lib/auth";
-import { withOffers } from "@/lib/offers";
-import { findOffers, mapLimit } from "@/lib/retail/aggregator";
 import { registryStore, RegistryError } from "@/lib/registry-store";
 import { EditDiffSchema } from "@/lib/types";
 
@@ -30,18 +29,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const parsed = EditDiffSchema.safeParse(body.diff);
     if (!parsed.success) return Response.json({ error: "Send a request or a diff." }, { status: 400 });
-    const diff = parsed.data;
-
-    const [added, swaps] = await Promise.all([
-      withOffers(diff.add, registry.profile),
-      mapLimit(diff.swap, 6, async (swap) => ({
-        itemId: swap.id,
-        searchQuery: swap.searchQuery,
-        reason: swap.reason,
-        offers: await findOffers(swap.searchQuery, registry.preferredRetailers),
-      })),
-    ]);
-    await store.applyEdits(id, ownerId, diff.remove, added, swaps);
+    await applyDiff(registry, ownerId, parsed.data);
     return Response.json({ ok: true });
   } catch (error) {
     console.error("Edit failed", error);

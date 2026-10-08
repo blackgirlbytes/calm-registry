@@ -1,4 +1,13 @@
-import type { ParentProfile } from "./types";
+import { ParentProfileSchema, SEED_FIELDS, type ParentProfile, type ProfileSeed } from "./types";
+
+const SeedSchema = ParentProfileSchema.pick(Object.fromEntries(SEED_FIELDS.map((k) => [k, true])) as { [K in (typeof SEED_FIELDS)[number]]: true }).partial();
+
+/** Carried-over answers from the browser; anything malformed is dropped rather than trusted. */
+export function parseSeed(value: unknown): ProfileSeed | null {
+  if (!value || typeof value !== "object") return null;
+  const parsed = SeedSchema.safeParse(value);
+  return parsed.success && Object.keys(parsed.data).length ? parsed.data : null;
+}
 
 /** Guards against a model picking a month that already passed this year. */
 export function futureDueDate(dueDate: string | null) {

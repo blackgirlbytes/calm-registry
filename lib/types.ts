@@ -131,6 +131,30 @@ export type AddressRequest = {
 
 export type ChatMessage = { role: "assistant" | "user"; content: string };
 
+/** Answers that usually stay the same from one baby to the next. */
+export const SEED_FIELDS = ["home", "hasCar", "feeding", "budget", "values", "preferredRetailers"] as const;
+export type ProfileSeed = Partial<Pick<ParentProfile, (typeof SEED_FIELDS)[number]>>;
+
+export type IntakeDraft = {
+  id: string;
+  /** null while answering for a new registry; otherwise answering again will rebuild this registry. */
+  registryId: string | null;
+  messages: ChatMessage[];
+  chips: string[];
+  /** Set once the chat is finished and the parent is checking their answers. */
+  profile: ParentProfile | null;
+  seed: ProfileSeed | null;
+  updatedAt: string;
+};
+
+export const DraftSaveSchema = z.object({
+  messages: z
+    .array(z.object({ role: z.enum(["assistant", "user"]), content: z.string().max(2000) }))
+    .max(80),
+  chips: z.array(z.string().max(80)).max(8),
+  profile: ParentProfileSchema.nullable(),
+});
+
 export const EditDiffSchema = z.object({
   summary: z.string(),
   remove: z.array(z.string()).describe("ids of items to remove"),

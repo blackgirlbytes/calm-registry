@@ -1,7 +1,8 @@
 import "server-only";
 import { z } from "zod";
-import { INTAKE_GUIDANCE, todayLine, VOICE_RULES } from "../ai/prompts";
-import { ParentProfileSchema, type ChatMessage, type Registry } from "../types";
+import { openingTurn } from "../ai/intake";
+import { INTAKE_GUIDANCE, seedGuidance, todayLine, VOICE_RULES } from "../ai/prompts";
+import { ParentProfileSchema, type ChatMessage, type ProfileSeed, type Registry } from "../types";
 
 export const AGENT_URL = "wss://agent.deepgram.com/v1/agent/converse";
 
@@ -53,15 +54,18 @@ function baseSettings(mode: "intake" | "edit", prompt: string, functions: unknow
 const VOICE_OPENING =
   "Hi! I'll put together a registry for you, so you don't have to start from a blank page. Just a few quick questions. First, when is your little one due?";
 
-export function intakeSettings(history: ChatMessage[]) {
+export function intakeSettings(history: ChatMessage[], seed: ProfileSeed | null = null) {
   const answered = history.some((m) => m.role === "user");
   const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content;
-  const greeting = answered && lastAssistant ? `Okay, I'm listening. ${lastAssistant}` : VOICE_OPENING;
+  const opening = seed ? openingTurn(seed).reply : VOICE_OPENING;
+  const greeting = answered && lastAssistant ? `Okay, I'm listening. ${lastAssistant}` : opening;
   const prompt = `${INTAKE_GUIDANCE}
 - When you know enough, or the parent asks to finish, call finish_intake with the complete profile.
   Use "unknown", "unsure", null, or an empty list for anything you didn't learn. Don't announce the call first.
-- After finish_intake succeeds, say one short, warm sentence that you're building their registry now, then stop talking.
-- If finish_intake reports a problem, ask only about what it says is missing.`;
+- After finish_intake succeeds, say one short, warm sentence asking them to look over their answers on screen
+  and tap build when it looks right, then stop talking.
+- If finish_intake reports a problem, ask only about what it says is missing.
+${seed ? seedGuidance(seed) : ""}`;
   const functions = [
     {
       name: "finish_intake",

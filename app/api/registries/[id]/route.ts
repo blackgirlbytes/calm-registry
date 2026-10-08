@@ -24,6 +24,21 @@ export async function GET(request: Request, context: RouteContext) {
   }
 }
 
+/** Permanent. The browser must send { confirm: true } so a stray request can't delete a registry. */
+export async function DELETE(request: Request, context: RouteContext) {
+  const { id } = await context.params;
+  const ownerId = await getOwnerId(request);
+  if (!ownerId) return unauthorized();
+  const body = (await request.json().catch(() => ({}))) as { confirm?: unknown };
+  if (body.confirm !== true) return Response.json({ error: "Confirm before deleting." }, { status: 400 });
+  try {
+    await registryStore().deleteRegistry(id, ownerId);
+    return Response.json({ ok: true });
+  } catch (error) {
+    return Response.json({ error: error instanceof RegistryError ? error.message : "Could not delete." }, { status: 409 });
+  }
+}
+
 export async function PATCH(request: Request, context: RouteContext) {
   const { id } = await context.params;
   const ownerId = await getOwnerId(request);

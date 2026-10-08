@@ -22,13 +22,32 @@ export async function POST(request: Request) {
   const ownerId = await getOwnerId(request);
   if (!ownerId) return unauthorized();
 
-  const parsed = ParentProfileSchema.safeParse(((await request.json().catch(() => ({}))) as { profile?: unknown }).profile);
+  const body = (await request.json().catch(() => ({}))) as { profile?: unknown; draftId?: unknown; registryId?: unknown };
+  const parsed = ParentProfileSchema.safeParse(body.profile);
   if (!parsed.success) return Response.json({ error: "A valid profile is required." }, { status: 400 });
 
   try {
+    const store = registryStore();
     const profile = normalizeProfile(parsed.data);
-    const { title, items } = await generateRegistry(profile);
-    const id = await registryStore().create({ ownerId, title, profile, items: await withOffers(items, profile) });
+    let id: string;
+
+    if (typeof body.registryId === "string") {
+      // Starting over: same registry and share link, a fresh list around anything already gifted.
+      const registry = await store.getById(body.registryId);
+      if (!registry || registry.ownerId !== ownerId) return Response.json({ error: "Registry not found." }, { status: 404 });
+      const gifted = new Set(registry.items.filter((i) => i.purchased).map((i) => i.name.toLowerCase()));
+      const { items } = await generateRegistry(profile);
+      const fresh = items.filter((i) => !gifted.has(i.name.toLowerCase()));
+      await store.rebuild(registry.id, ownerId, profile, await withOffers(fresh, profile));
+      id = registry.id;
+    } else {
+      const { title, items } = await generateRegistry(profile);
+      id = await store.create({ ownerId, title, profile, items: await withOffers(items, profile) });
+    }
+
+    if (typeof body.draftId === "string") {
+      await store.deleteDraft(body.draftId, ownerId).catch((error) => console.error("Draft cleanup failed", error));
+    }
     return Response.json({ id });
   } catch (error) {
     console.error("Registry creation failed", error);

@@ -1,58 +1,156 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, authEnabled, getBrowserSupabase } from "@/lib/client";
+import type { IntakeDraft } from "@/lib/types";
 
 type Summary = { id: string; slug: string; title: string };
 
-/** Registries this person already started, if any. */
+function answeredCount(draft: IntakeDraft) {
+  return draft.messages.filter((m) => m.role === "user").length;
+}
+
+function draftLabel(draft: IntakeDraft) {
+  if (draft.profile) return "Answers ready to check";
+  const n = answeredCount(draft);
+  return `${n} ${n === 1 ? "answer" : "answers"} so far`;
+}
+
+/** Registries this person already has, plus any answers they haven't finished. */
 export function ResumeList() {
   const [registries, setRegistries] = useState<Summary[]>([]);
+  const [drafts, setDrafts] = useState<IntakeDraft[]>([]);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  useEffect(() => {
-    void (async () => {
-      if (authEnabled) {
-        const { data } = await getBrowserSupabase()!.auth.getSession();
-        if (!data.session) return;
-      }
-      const result = await api<{ registries: Summary[] }>("/api/registries").catch(() => null);
-      if (result) setRegistries(result.registries);
-    })();
+  const load = useCallback(async () => {
+    if (authEnabled) {
+      const { data } = await getBrowserSupabase()!.auth.getSession();
+      if (!data.session) return;
+    }
+    const [r, d] = await Promise.all([
+      api<{ registries: Summary[] }>("/api/registries").catch(() => null),
+      api<{ drafts: IntakeDraft[] }>("/api/drafts").catch(() => null),
+    ]);
+    if (r) setRegistries(r.registries);
+    if (d) setDrafts(d.drafts);
   }, []);
 
-  if (!registries.length) return null;
-  const [latest, ...others] = registries;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function remove(task: () => Promise<unknown>) {
+    setBusy(true);
+    setError("");
+    try {
+      await task();
+      setConfirming(null);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That didn't work. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const unfinished = drafts.find((d) => !d.registryId && (answeredCount(d) > 0 || d.profile));
+  const startingOver = new Map(drafts.filter((d) => d.registryId && answeredCount(d) > 0).map((d) => [d.registryId, d]));
+
+  if (!registries.length && !unfinished) return null;
+
+  const confirmRow = (key: string, prompt: string, onConfirm: () => void) =>
+    confirming === key && (
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 text-[14px]" role="alertdialog" aria-label={prompt}>
+        <span className="text-muted">{prompt}</span>
+        <span className="flex gap-2">
+          <button className="btn-quiet px-3 py-1.5 text-[13px]" onClick={() => setConfirming(null)} disabled={busy}>
+            Keep it
+          </button>
+          <button className="btn-primary px-3 py-1.5 text-[13px]" onClick={onConfirm} disabled={busy}>
+            {busy ? "Deleting…" : "Delete"}
+          </button>
+        </span>
+      </div>
+    );
 
   return (
-    <section aria-labelledby="resume" className="rounded-xl bg-surface px-5 py-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-        <div className="min-w-0">
-          <h2 id="resume" className="text-[13px] text-muted">
-            Pick up where you left off
-          </h2>
-          <p className="truncate font-serif text-[19px] font-semibold">{latest.title}</p>
-        </div>
-        <Link href={`/registry/${latest.id}`} className="btn-quiet shrink-0 px-4 py-2.5">
-          Open registry
-        </Link>
-      </div>
-      {others.length > 0 && (
-        <details className="group mt-3 border-t border-line pt-3">
-          <summary className="link cursor-pointer list-none text-[13px] [&::-webkit-details-marker]:hidden">
-            <span className="group-open:hidden">See your other {others.length === 1 ? "registry" : `${others.length} registries`}</span>
-            <span className="hidden group-open:inline">Hide other registries</span>
-          </summary>
-          <ul className="mt-2 grid gap-x-8 sm:grid-cols-2">
-            {others.map((r) => (
-              <li key={r.id}>
-                <Link href={`/registry/${r.id}`} className="block truncate py-2 text-[14px] transition-colors hover:text-accent">
-                  {r.title}
+    <section aria-labelledby="yours" className="space-y-3 rounded-xl bg-surface px-5 py-4">
+      <h2 id="yours" className="text-[13px] text-muted">
+        Your registries
+      </h2>
+
+      <ul className="divide-y divide-line border-y border-line">
+        {unfinished && (
+          <li>
+            <div className="flex items-center justify-between gap-4 py-3">
+              <div className="min-w-0">
+                <p className="truncate font-serif text-[19px] font-semibold">A new registry</p>
+                <p className="text-[13px] text-muted">{draftLabel(unfinished)}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-3">
+                <button className="link text-[13px]" onClick={() => setConfirming(unfinished.id)}>
+                  Discard
+                </button>
+                <Link href={`/start?draft=${unfinished.id}`} className="btn-primary px-4 py-2.5">
+                  Finish answers
                 </Link>
-              </li>
-            ))}
-          </ul>
-        </details>
+              </div>
+            </div>
+            {confirmRow(unfinished.id, "Discard these answers?", () =>
+              void remove(() => api(`/api/drafts/${unfinished.id}`, { method: "DELETE" })),
+            )}
+          </li>
+        )}
+        {registries.map((r) => {
+          const over = startingOver.get(r.id);
+          return (
+            <li key={r.id}>
+              <div className="flex items-center justify-between gap-4 py-3">
+                <div className="min-w-0">
+                  <p className="truncate font-serif text-[19px] font-semibold">{r.title}</p>
+                  {over && (
+                    <Link href={`/start?draft=${over.id}`} className="link text-[13px]">
+                      Starting over, {draftLabel(over).toLowerCase()}. Continue
+                    </Link>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button className="link text-[13px]" onClick={() => setConfirming(r.id)}>
+                    Delete
+                  </button>
+                  <Link href={`/registry/${r.id}`} className="btn-quiet px-4 py-2.5">
+                    Open
+                  </Link>
+                </div>
+              </div>
+              {confirmRow(r.id, "Delete it? The share link stops working and gifts marked on it are lost.", () =>
+                void remove(() => api(`/api/registries/${r.id}`, { method: "DELETE", body: JSON.stringify({ confirm: true }) })),
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {error && (
+        <p role="alert" className="text-[13px] text-danger">
+          {error}
+        </p>
+      )}
+
+      {!unfinished && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-2 pt-1 text-[13px]">
+          <Link href="/start?new" className="link">
+            Start a new registry
+          </Link>
+          {registries[0] && (
+            <Link href={`/start?from=${registries[0].id}`} className="link">
+              Start one using answers from {registries[0].title}
+            </Link>
+          )}
+        </div>
       )}
     </section>
   );
