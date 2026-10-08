@@ -3,7 +3,7 @@
   "checkpoint_id": "01M4CKN0NDSBJ7A4NSGSB7VS95",
   "strategy": "manual-commit",
   "branch": "laptop-layouts",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "app/registry/[id]/review/page.tsx",
     "app/start/page.tsx",
@@ -18,13 +18,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 48,
+    "cache_creation_tokens": 33026,
+    "cache_read_tokens": 6883961,
+    "output_tokens": 14355,
+    "api_call_count": 24,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 0
+    }
   }
 }
