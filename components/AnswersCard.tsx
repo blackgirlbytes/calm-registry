@@ -1,26 +1,47 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BUDGET_LABELS, describeAnswers, FEEDING_LABELS, HOME_LABELS } from "@/lib/answers";
-import { RETAILER_LABELS, RETAILERS, type ParentProfile } from "@/lib/types";
+import {
+  BUDGET_LABELS,
+  CIRCLE_LABELS,
+  describeAnswers,
+  FEEDING_LABELS,
+  HAIR_LABELS,
+  HOME_LABELS,
+  HOUSEHOLD_LABELS,
+  SEX_LABELS,
+  VALUE_LABELS,
+  WORK_LABELS,
+} from "@/lib/answers";
+import { HOUSEHOLD, RETAILER_LABELS, RETAILERS, VALUES, type ParentProfile } from "@/lib/types";
 
 type Field = keyof ReturnType<typeof describeAnswers>;
 
 const LABELS: Record<Field, string> = {
   dueDate: "Due date",
   names: "Names",
+  baby: "Baby",
+  city: "City",
   home: "Home",
   hasCar: "Driving",
+  household: "Also at home",
   feeding: "Feeding",
-  budget: "Budget",
+  work: "After baby arrives",
   alreadyHave: "Already have",
-  values: "What matters to you",
   preferredRetailers: "Stores",
+  travel: "Travel",
+  hairType: "Family hair type",
+  sensitiveSkin: "Sensitive skin or eczema",
+  languages: "Other languages at home",
+  circle: "How many people will shop",
+  values: "Organic or simple",
+  budget: "Gift prices",
   notes: "Anything else",
 };
 
 const HAVE_IDEAS = ["Crib", "Bassinet", "Stroller", "Car seat", "High chair", "Baby carrier", "Bouncer"];
-const VALUE_IDEAS = ["Eco-friendly", "Minimal", "Gender-neutral", "Organic", "Secondhand welcome"];
+const LANGUAGE_IDEAS = ["Spanish", "French", "Mandarin", "Arabic", "Haitian Creole", "Yoruba"];
+const BABY_COUNTS: Record<string, string> = { "1": "One baby", "2": "Twins", "3": "Triplets" };
 
 /** Every answer in plain words; tap one to change it. Used before building and on the registry page. */
 export function AnswersCard({
@@ -81,6 +102,32 @@ export function AnswersCard({
             />
           </div>
         );
+      case "baby":
+        return (
+          <div className="space-y-3">
+            <Choices value={String(profile.babies)} labels={BABY_COUNTS} 
+              onPick={(n) =>
+                set({ babies: Number(n), babySex: n === "1" && profile.babySex === "mixed" ? "unknown" : profile.babySex })
+              }
+            />
+            <Choices
+              value={profile.babySex}
+              labels={profile.babies > 1 ? SEX_LABELS : withoutMixed(SEX_LABELS)}
+              onPick={(babySex) => set({ babySex })}
+            />
+          </div>
+        );
+      case "city":
+        return (
+          <input
+            aria-label="City"
+            value={profile.city}
+            onChange={(e) => set({ city: e.target.value })}
+            placeholder="Your city, like Houston, TX"
+            maxLength={80}
+            className="field"
+          />
+        );
       case "home":
         return <Choices value={profile.home} labels={HOME_LABELS} onPick={(home) => set({ home })} />;
       case "hasCar":
@@ -91,14 +138,28 @@ export function AnswersCard({
             onPick={(v) => set({ hasCar: v === "null" ? null : v === "true" })}
           />
         );
+      case "household":
+        return <Toggles options={HOUSEHOLD} labels={HOUSEHOLD_LABELS} values={profile.household} onChange={(household) => set({ household })} />;
       case "feeding":
         return <Choices value={profile.feeding} labels={FEEDING_LABELS} onPick={(feeding) => set({ feeding })} />;
+      case "work":
+        return <Choices value={profile.work} labels={WORK_LABELS} onPick={(work) => set({ work })} />;
+      case "travel":
+        return <YesNo value={profile.travel} yes="Yes, we'll travel" no="Not much" onPick={(travel) => set({ travel })} />;
+      case "hairType":
+        return <Choices value={profile.hairType} labels={HAIR_LABELS} onPick={(hairType) => set({ hairType })} />;
+      case "sensitiveSkin":
+        return <YesNo value={profile.sensitiveSkin} yes="Yes" no="No" onPick={(sensitiveSkin) => set({ sensitiveSkin })} />;
+      case "languages":
+        return <Tags values={profile.languages} ideas={LANGUAGE_IDEAS} onChange={(languages) => set({ languages })} placeholder="Add a language" />;
+      case "circle":
+        return <Choices value={profile.circle} labels={CIRCLE_LABELS} onPick={(circle) => set({ circle })} />;
       case "budget":
         return <Choices value={profile.budget} labels={BUDGET_LABELS} onPick={(budget) => set({ budget })} />;
       case "alreadyHave":
         return <Tags values={profile.alreadyHave} ideas={HAVE_IDEAS} onChange={(alreadyHave) => set({ alreadyHave })} placeholder="Add something you have" />;
       case "values":
-        return <Tags values={profile.values} ideas={VALUE_IDEAS} onChange={(values) => set({ values })} placeholder="Add what matters to you" />;
+        return <Toggles options={VALUES} labels={VALUE_LABELS} values={profile.values} onChange={(values) => set({ values })} />;
       case "preferredRetailers":
         return (
           <div className="flex flex-wrap gap-2">
@@ -127,7 +188,7 @@ export function AnswersCard({
             onChange={(e) => set({ notes: e.target.value })}
             rows={3}
             maxLength={500}
-            placeholder="Twins, allergies, a small car, anything that helps"
+            placeholder="Allergies, a small car, anything that helps"
             className="field resize-none"
           />
         );
@@ -180,6 +241,46 @@ function Choices<K extends string>({ value, labels, onPick }: { value: string; l
           {labels[k]}
         </Option>
       ))}
+    </div>
+  );
+}
+
+function withoutMixed(labels: typeof SEX_LABELS) {
+  const { mixed: _mixed, ...rest } = labels;
+  return rest;
+}
+
+function YesNo({ value, yes, no, onPick }: { value: boolean | null; yes: string; no: string; onPick: (v: boolean | null) => void }) {
+  return (
+    <Choices
+      value={String(value)}
+      labels={{ true: yes, false: no, null: "Not sure" }}
+      onPick={(v) => onPick(v === "null" ? null : v === "true")}
+    />
+  );
+}
+
+function Toggles<K extends string>({
+  options,
+  labels,
+  values,
+  onChange,
+}: {
+  options: readonly K[];
+  labels: Record<K, string>;
+  values: K[];
+  onChange: (next: K[]) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((k) => {
+        const on = values.includes(k);
+        return (
+          <Option key={k} selected={on} onClick={() => onChange(on ? values.filter((v) => v !== k) : [...values, k])}>
+            {labels[k]}
+          </Option>
+        );
+      })}
     </div>
   );
 }

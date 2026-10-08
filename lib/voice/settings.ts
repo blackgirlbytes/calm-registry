@@ -20,7 +20,22 @@ export async function grantToken(): Promise<string> {
   return ((await response.json()) as { access_token: string }).access_token;
 }
 
-const KEYTERMS = ["bassinet", "swaddle", "onesie", "stroller", "car seat", "Target", "Walmart", "Amazon"];
+const KEYTERMS = [
+  "bassinet",
+  "swaddle",
+  "onesie",
+  "stroller",
+  "car seat",
+  "Target",
+  "Walmart",
+  "Amazon",
+  "twins",
+  "triplets",
+  "coily",
+  "eczema",
+  "bilingual",
+  "daycare",
+];
 
 function profileParameters() {
   const { $schema: _schema, ...schema } = z.toJSONSchema(ParentProfileSchema) as Record<string, unknown>;
@@ -52,7 +67,7 @@ function baseSettings(mode: "intake" | "edit", prompt: string, functions: unknow
 }
 
 const VOICE_OPENING =
-  "Hi! I'll put together a registry for you, so you don't have to start from a blank page. Just a few quick questions. First, when is your little one due?";
+  "Hi! I'll put together a registry for you, so you don't have to start from a blank page. Just a few quick questions. First, when is your little one, or little ones, due?";
 
 export function intakeSettings(history: ChatMessage[], seed: ProfileSeed | null = null) {
   const answered = history.some((m) => m.role === "user");
@@ -62,8 +77,9 @@ export function intakeSettings(history: ChatMessage[], seed: ProfileSeed | null 
   const prompt = `${INTAKE_GUIDANCE}
 - When you know enough, or the parent asks to finish, call finish_intake with the complete profile.
   Use "unknown", "unsure", null, or an empty list for anything you didn't learn. Don't announce the call first.
-- After finish_intake succeeds, say one short, warm sentence asking them to look over their answers on screen
-  and tap build when it looks right, then stop talking.
+- After finish_intake succeeds, briefly ask them to look over their answers on screen and tap build when it
+  looks right. Mention that they can add an address privately later if they'd like gifts shipped. Then stop talking.
+- Out loud, never offer more than four short choices in one question.
 - If finish_intake reports a problem, ask only about what it says is missing.
 ${seed ? seedGuidance(seed) : ""}`;
   const functions = [

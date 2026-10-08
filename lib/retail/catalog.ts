@@ -111,6 +111,8 @@ function toOffer(entry: CatalogEntry): Offer {
 
 /** Real, hand-checked products for a query, or null when the catalog doesn't cover it. */
 export function catalogSearch(query: string, maxPrice?: number): Offer[] | null {
+  // Catalog clothing is neutral, so a boy or girl search goes to the store's own results instead.
+  if (/\b(boys?|girls?)\b/i.test(query)) return null;
   const kind = matchKind(query);
   if (!kind) return null;
   const matches = CATALOG.filter((e) => e.kind === kind);

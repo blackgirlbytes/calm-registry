@@ -2,9 +2,10 @@ import "server-only";
 import { z } from "zod";
 import { ParentProfileSchema, type ChatMessage, type ParentProfile, type ProfileSeed, type RetailerId } from "../types";
 import { describeSeed } from "../answers";
-import { normalizeProfile } from "../profile";
+import { BUILD_NOW, BUILD_NOW_PATTERN, ESSENTIAL_STEPS, OFFER_STEP, QUICK_STEPS, stepsFor, type IntakeStep } from "../intake-steps";
+import { coerceProfile, PROFILE_DEFAULTS } from "../profile";
 import { callJson, isOpenAIConfigured } from "./openai";
-import { INTAKE_GUIDANCE, seedGuidance, todayLine } from "./prompts";
+import { INTAKE_GUIDANCE, seedGuidance, todayLine, WRAP_UP } from "./prompts";
 
 export const IntakeTurnSchema = z.object({
   reply: z.string().describe("Your next short, warm message. One question at a time."),
@@ -14,67 +15,53 @@ export const IntakeTurnSchema = z.object({
 });
 export type IntakeTurn = z.infer<typeof IntakeTurnSchema>;
 
+const ALL_STEPS = [...ESSENTIAL_STEPS, OFFER_STEP, ...QUICK_STEPS];
+
 function systemPrompt(seed: ProfileSeed | null) {
   return `${INTAKE_GUIDANCE}
 - Offer 1-5 tap-to-answer chips matching your question. Each chip is sent as their answer, so it must read as one.
-  For the names question, use only chips like "Skip for now" and "No baby name yet"; they'll type the names.
+  Use these chips for these questions:
+${ALL_STEPS.map((s) => `  "${s.ask}" → ${JSON.stringify(s.chips)}`).join("\n")}
+  For the names, city, and language questions, they'll type the answer; the chips are only for skipping.
 - If they correct an earlier answer, use the new one.
-- When you have enough, set done=true, fill in profile, and reply with one short sentence asking them to look over
-  their answers below and tap build when it looks right.
+- When you're done, set done=true, fill in profile, and reply with about this: "${WRAP_UP}"
 ${seed ? `${seedGuidance(seed)}\n` : ""}${todayLine()}`;
 }
 
-const DUE_CHIPS = ["In 1-2 months", "In 3-5 months", "6+ months away", "Not sure yet"];
-
 export const OPENING: IntakeTurn = {
-  reply:
-    "Hi! I'll put together a registry for you, so you don't have to start from a blank page. Just a few quick questions, and you can tap an answer or type anything. First, when is your little one due?",
-  chips: DUE_CHIPS,
+  reply: `Hi! I'll put together a registry for you, so you don't have to start from a blank page. Just a few quick questions, and you can tap an answer or type anything. First, ${ESSENTIAL_STEPS[0].ask.replace(/^W/, "w")}`,
+  chips: ESSENTIAL_STEPS[0].chips,
   done: false,
   profile: null,
 };
+
+/** From the third question on, a tired parent can stop and let defaults fill the rest. */
+function withBuildNow(turn: IntakeTurn, answered: number): IntakeTurn {
+  if (turn.done || answered < 2 || turn.chips.some((c) => BUILD_NOW_PATTERN.test(c))) return turn;
+  return { ...turn, chips: [...turn.chips.slice(0, 5), BUILD_NOW] };
+}
 
 export function openingTurn(seed: ProfileSeed | null): IntakeTurn {
   const kept = seed ? describeSeed(seed) : "";
   if (!kept) return OPENING;
   return {
     ...OPENING,
-    reply: `Welcome back! I kept a few answers from last time: ${kept}. You can change any of them before I build. When is this little one due?`,
+    reply: `Welcome back! I kept a few answers from last time: ${kept}. You can change any of them before I build. When is this little one (or little ones!) due?`,
   };
 }
 
 export async function nextIntakeTurn(messages: ChatMessage[], seed: ProfileSeed | null = null): Promise<IntakeTurn> {
-  if (!isOpenAIConfigured()) return mockIntakeTurn(messages, seed);
+  const answered = messages.filter((m) => m.role === "user").length;
+  if (!isOpenAIConfigured()) return withBuildNow(mockIntakeTurn(messages, seed), answered);
   const turn = await callJson("intake_turn", IntakeTurnSchema, [{ role: "system", content: systemPrompt(seed) }, ...messages]);
-  if (turn.profile) turn.profile = normalizeProfile(turn.profile);
-  return turn;
+  if (turn.profile) turn.profile = coerceProfile(turn.profile);
+  return withBuildNow(turn, answered);
 }
 
 // ---------------------------------------------------------------------------
 // Scripted fallback so the flow works without an OpenAI key.
 
-type StepKey = "dueDate" | "names" | "home" | "hasCar" | "feeding" | "budget" | "alreadyHave" | "values" | "preferredRetailers";
-
-const SCRIPT: Array<{ key: StepKey } & Omit<IntakeTurn, "done" | "profile">> = [
-  { key: "dueDate", reply: OPENING.reply, chips: OPENING.chips },
-  {
-    key: "names",
-    reply: "Lovely. What should family call you? And if you've picked a name for baby, I'd love to hear it, but that's optional.",
-    chips: ["Skip for now"],
-  },
-  { key: "home", reply: "Thank you. Do you live in an apartment or a house?", chips: ["Apartment", "House", "Something else"] },
-  { key: "hasCar", reply: "Got it. Will you be driving with baby much?", chips: ["Yes, we drive", "Mostly walk / transit", "A bit of both"] },
-  { key: "feeding", reply: "How are you thinking about feeding? Totally fine to not know yet.", chips: ["Breastfeeding", "Formula", "A mix", "Not sure"] },
-  { key: "budget", reply: "What budget feels comfortable for the registry overall?", chips: ["Keep it lean", "Moderate", "Generous"] },
-  { key: "alreadyHave", reply: "Anything you already have or are getting handed down?", chips: ["Crib", "Stroller", "Car seat", "Nothing yet"] },
-  { key: "values", reply: "Any values that matter to you?", chips: ["Eco-friendly", "Minimal", "Gender-neutral", "No preference"] },
-  { key: "preferredRetailers", reply: "Last one! Where do your friends and family like to shop?", chips: ["Amazon", "Target", "Walmart", "Any of them"] },
-];
-
-/** Steps still asked once carried-over answers are known. */
-function steps(seed: ProfileSeed | null) {
-  return SCRIPT.filter((step) => !seed || !(step.key in seed));
-}
+const ACKS = ["Lovely.", "Thank you.", "Got it.", "Okay.", "Perfect."];
 
 function dueDateFrom(answer: string) {
   const months = /1-2/.test(answer) ? 1.5 : /3-5/.test(answer) ? 4 : /6\+/.test(answer) ? 6.5 : null;
@@ -85,25 +72,70 @@ function dueDateFrom(answer: string) {
   return date.toISOString().slice(0, 10);
 }
 
+function yesNo(answer: string): boolean | null {
+  if (/^(no|nope|not much|not really|none)\b/.test(answer)) return false;
+  if (/^(yes|yeah|yep|sure)\b|eczema|sensitive|travel|fly/.test(answer)) return true;
+  return null;
+}
+
+function babyFrom(answer: string): Pick<ParentProfile, "babySex" | "babies"> {
+  const babies = /triplet/.test(answer) ? 3 : /twin|two babies/.test(answer) ? 2 : 1;
+  const boy = /\bboys?\b|\bson\b/.test(answer);
+  const girl = /\bgirls?\b|\bdaughter\b/.test(answer);
+  const babySex = /one of each|boy and (a )?girl|girl and (a )?boy/.test(answer)
+    ? "mixed"
+    : boy && !girl
+      ? "boy"
+      : girl && !boy
+        ? "girl"
+        : /surprise/.test(answer)
+          ? "surprise"
+          : "unknown";
+  return { babySex, babies };
+}
+
+/** Where the parent asked to stop, as an index into their answers; everything after is unasked. */
+function stopIndex(raw: string[], asked: IntakeStep[]) {
+  const index = raw.findIndex((answer, i) => BUILD_NOW_PATTERN.test(answer) || (asked[i]?.key === "offer" && /^no\b/i.test(answer)));
+  return index === -1 ? raw.length : index;
+}
+
 export function mockProfile(messages: ChatMessage[], seed: ProfileSeed | null = null): ParentProfile {
-  const raw = messages.filter((m) => m.role === "user").map((m) => m.content.trim());
-  const asked = steps(seed);
-  const answer = (key: StepKey) => raw[asked.findIndex((s) => s.key === key)] ?? "";
-  const at = (key: StepKey) => answer(key).toLowerCase();
+  const all = messages.filter((m) => m.role === "user").map((m) => m.content.trim());
+  const asked = stepsFor(seed);
+  const raw = all.slice(0, stopIndex(all, asked));
+  const answer = (key: string) => {
+    const index = asked.findIndex((s) => s.key === key);
+    return index === -1 ? "" : (raw[index] ?? "");
+  };
+  const at = (key: string) => answer(key).toLowerCase();
   const rawNames = answer("names");
   const [parentPart, babyPart] = rawNames.split(/[,.;]\s*(?:and\s+)?(?:the\s+)?baby(?:'s name)?(?:\s+is|\s+will be)?\s*/i);
   const stores: RetailerId[] = (["amazon", "walmart", "target"] as const).filter((s) => at("preferredRetailers").includes(s));
   const haves = ["crib", "stroller", "car seat", "bassinet", "high chair", "bouncer"].filter((h) => at("alreadyHave").includes(h));
-  const values = ["eco", "minimal", "gender-neutral"].filter((v) => at("values").includes(v));
-  const car = at("hasCar");
+  const homeCar = at("homeCar");
+  const household = at("household");
   const feeding = at("feeding");
-  const budget = at("budget");
+  const work = at("work");
+  const circle = at("circle");
+  const values = at("values");
+  const hair = at("hairType");
+  const language = answer("languages");
+  const baby = babyFrom(`${at("baby")} ${at("dueDate")}`);
   return {
+    ...PROFILE_DEFAULTS,
     parentNames: /^skip/i.test(rawNames) ? "" : (parentPart ?? "").replace(/^(we're|we are|i'm|i am)\s+/i, ""),
     babyName: babyPart?.trim() ?? "",
     dueDate: dueDateFrom(at("dueDate")),
-    home: at("home").includes("apartment") ? "apartment" : at("home").includes("house") ? "house" : "unknown",
-    hasCar: car.includes("walk") || car.includes("transit") ? false : car ? true : null,
+    ...baby,
+    city: /^skip/i.test(answer("city")) ? "" : answer("city"),
+    home: homeCar.includes("apartment") ? "apartment" : homeCar.includes("house") ? "house" : "unknown",
+    hasCar: /no car|walk|transit|don'?t drive/.test(homeCar) ? false : /car|drive/.test(homeCar) ? true : null,
+    household: [
+      ...(/big kid|sibling|brother|sister|son|daughter|toddler|kids/.test(household) ? (["siblings"] as const) : []),
+      ...(/pet|dog|cat/.test(household) ? (["pets"] as const) : []),
+      ...(/grand|nana|abuela|my mom|in-law/.test(household) ? (["grandparents"] as const) : []),
+    ],
     feeding: feeding.includes("mix") || feeding.includes("both")
       ? "both"
       : feeding.includes("breast")
@@ -111,26 +143,29 @@ export function mockProfile(messages: ChatMessage[], seed: ProfileSeed | null = 
         : feeding.includes("formula")
           ? "formula"
           : "unsure",
-    budget: budget.includes("lean") ? "lean" : budget.includes("generous") ? "generous" : "moderate",
-    values,
+    work: /work|daycare|job/.test(work) ? "back-to-work" : /home|stay/.test(work) ? "home" : "unsure",
     alreadyHave: haves,
     preferredRetailers: stores,
-    notes: "",
+    travel: yesNo(at("travel")),
+    hairType: (["straight", "wavy", "coily", "curly"] as const).find((h) => hair.includes(h.slice(0, 4))) ?? "unknown",
+    sensitiveSkin: yesNo(at("sensitiveSkin")),
+    languages: /^(just english|english|no|none|skip)\b/i.test(language)
+      ? []
+      : language.replace(/^(yes,?\s*)?(we speak\s*)?/i, "").split(/,|\band\b|&/).map((l) => l.trim()),
+    circle: /small/.test(circle) ? "small" : /big|large|crowd/.test(circle) ? "big" : "medium",
+    values: [...(/organic|eco/.test(values) ? (["organic"] as const) : []), ...(/simple|minimal/.test(values) ? (["simple"] as const) : [])],
+    notes: /not our first|have lots/.test(at("alreadyHave")) ? "Not their first baby; they have a lot from before." : "",
     ...seed,
   };
 }
 
 function mockIntakeTurn(messages: ChatMessage[], seed: ProfileSeed | null): IntakeTurn {
-  const answered = messages.filter((m) => m.role === "user").length;
-  const asked = steps(seed);
-  if (answered >= asked.length) {
-    return {
-      reply: "Thank you, that's everything I need. Look over your answers below, and tap build when they look right.",
-      chips: [],
-      done: true,
-      profile: normalizeProfile(mockProfile(messages, seed)),
-    };
+  const all = messages.filter((m) => m.role === "user").map((m) => m.content.trim());
+  const asked = stepsFor(seed);
+  if (stopIndex(all, asked) < all.length || all.length >= asked.length) {
+    return { reply: `Thank you, that's everything I need. ${WRAP_UP}`, chips: [], done: true, profile: coerceProfile(mockProfile(messages, seed)) };
   }
-  const { key: _key, ...step } = asked[answered];
-  return { ...step, done: false, profile: null };
+  const step = asked[all.length];
+  const reply = all.length === 0 ? openingTurn(seed).reply : `${ACKS[all.length % ACKS.length]} ${step.ask}`;
+  return { reply, chips: step.chips, done: false, profile: null };
 }

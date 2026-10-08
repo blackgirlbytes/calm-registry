@@ -1,5 +1,5 @@
 import "server-only";
-import { EditDiffSchema, type EditDiff, type Registry } from "../types";
+import { CATEGORIES, EditDiffSchema, type EditDiff, type Registry } from "../types";
 import { CATALOG_QUERY_RULE } from "../retail/catalog";
 import { callJson, isOpenAIConfigured } from "./openai";
 
@@ -10,7 +10,8 @@ Return a minimal diff:
 - add: new items (same shape as generation: name, category, priority, reason, qty, searchQuery).
 - swap: items to re-search with a new searchQuery (e.g. a cheaper, eco, or compact variant) plus a new one-line reason.
 - summary: one short friendly sentence describing what you changed.
-Only change what the request asks for. Categories: Sleep, Feeding, Diapering, Bath, On-the-go, Clothing, Health, Play.
+Only change what the request asks for. Categories: ${CATEGORIES.join(", ")}.
+If babySex is "boy" or "girl", new or swapped clothing searchQuery starts with "baby boy" or "baby girl".
 ${CATALOG_QUERY_RULE}`;
 
 function itemsForPrompt(registry: Registry) {

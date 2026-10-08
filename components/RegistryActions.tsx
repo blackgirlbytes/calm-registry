@@ -41,7 +41,7 @@ export function YourAnswers({ registry, onSaved }: { registry: Registry; onSaved
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 space-y-1 text-[14px]">
           <p className="font-semibold">Your answers</p>
-          <p className="text-muted">{[plain.home, plain.hasCar, plain.feeding, `${plain.budget} budget`].join(", ")}</p>
+          <p className="text-muted">{[plain.baby, plain.home, plain.hasCar, plain.feeding].join(", ")}</p>
         </div>
         <button className="btn-quiet shrink-0 px-4 py-2.5" onClick={() => setDraft(registry.profile)}>
           Change answers

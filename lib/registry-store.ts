@@ -2,6 +2,7 @@ import "server-only";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { coerceProfile, parseSeed } from "./profile";
 import type {
   AddressRequest,
   AddressRequestStatus,
@@ -161,8 +162,8 @@ function toDraft(row: DraftRow): IntakeDraft {
     registryId: row.registry_id,
     messages: row.messages ?? [],
     chips: row.chips ?? [],
-    profile: row.profile,
-    seed: row.seed,
+    profile: row.profile ? coerceProfile(row.profile) : null,
+    seed: parseSeed(row.seed),
     updatedAt: row.updated_at,
   };
 }
@@ -212,7 +213,7 @@ function toRegistry(row: RegistryRow): Registry {
     babyName: row.baby_name ?? "",
     familyNote: row.family_note ?? "",
     hasAddress: Array.isArray(row.registry_addresses) ? row.registry_addresses.length > 0 : Boolean(row.registry_addresses),
-    profile: row.profile,
+    profile: coerceProfile(row.profile),
     preferredRetailers: row.preferred_retailers,
     dueDate: row.due_date,
     revision: Number(row.revision),
@@ -503,6 +504,7 @@ async function readLocal(): Promise<Registry[]> {
     babyName: r.babyName ?? "",
     familyNote: r.familyNote ?? "",
     hasAddress: Boolean(addresses[r.id]),
+    profile: coerceProfile(r.profile),
   }));
 }
 
@@ -535,7 +537,8 @@ type LocalDraft = IntakeDraft & { ownerId: string };
 
 async function readDrafts(): Promise<LocalDraft[]> {
   try {
-    return JSON.parse(await fs.readFile(DRAFTS_FILE, "utf8")) as LocalDraft[];
+    const drafts = JSON.parse(await fs.readFile(DRAFTS_FILE, "utf8")) as LocalDraft[];
+    return drafts.map((d) => ({ ...d, profile: d.profile ? coerceProfile(d.profile) : null, seed: parseSeed(d.seed) }));
   } catch {
     return [];
   }

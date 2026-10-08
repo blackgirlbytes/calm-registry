@@ -18,6 +18,7 @@ export const CATEGORIES = [
   "Clothing",
   "Health",
   "Play",
+  "For the parents",
 ] as const;
 export type Category = (typeof CATEGORIES)[number];
 
@@ -26,15 +27,33 @@ export type Priority = (typeof PRIORITIES)[number];
 
 export type ItemStatus = "pending" | "keep" | "skip";
 
+export const HOUSEHOLD = ["siblings", "pets", "grandparents"] as const;
+export const CIRCLES = ["small", "medium", "big"] as const;
+export const VALUES = ["organic", "simple"] as const;
+
 export const ParentProfileSchema = z.object({
   parentNames: z.string().describe("Parents' first names as they'd like them shown, e.g. 'Maya and Jordan'. Empty if not shared."),
   babyName: z.string().describe("Baby's name or nickname if picked. Empty if not decided or not shared."),
   dueDate: z.string().nullable(),
+  babySex: z
+    .enum(["boy", "girl", "mixed", "surprise", "unknown"])
+    .describe("Only what they said. 'mixed' is twins with a boy and a girl. Never guess from names or anything else."),
+  babies: z.number().describe("How many babies: 1, or 2 for twins, 3 for triplets."),
+  city: z.string().describe("The city they live in, e.g. 'Houston, TX'. Empty if not shared. Never a street address."),
   home: z.enum(["apartment", "house", "unknown"]),
   hasCar: z.boolean().nullable(),
+  household: z.array(z.enum(HOUSEHOLD)).describe("Who else lives with them: big kids, pets, or grandparents who help or live there."),
   feeding: z.enum(["breast", "formula", "both", "unsure"]),
-  budget: z.enum(["lean", "moderate", "generous"]),
-  values: z.array(z.string()),
+  work: z.enum(["back-to-work", "home", "unsure"]).describe("Whether they're going back to work (often with daycare) or home with baby."),
+  travel: z.boolean().nullable().describe("Whether they'll travel with baby, like flying to see family."),
+  hairType: z.enum(["straight", "wavy", "curly", "coily", "unknown"]).describe("The hair type that runs in their family. Only what they said."),
+  sensitiveSkin: z.boolean().nullable().describe("Whether sensitive skin or eczema runs in the family."),
+  languages: z.array(z.string()).describe("Languages spoken at home other than English, e.g. ['Spanish']. Empty if none."),
+  circle: z.enum(CIRCLES).describe("How many people will shop the registry: a small circle, in between, or a big family crowd."),
+  budget: z
+    .enum(["lean", "moderate", "generous"])
+    .describe("Gift prices. Not asked; use 'moderate' (a mix of prices) unless they bring it up."),
+  values: z.array(z.enum(VALUES)).describe("'organic' to lean organic, 'simple' to keep the list to essentials."),
   alreadyHave: z.array(z.string()),
   preferredRetailers: z.array(z.enum(RETAILERS)),
   notes: z.string(),
@@ -132,7 +151,22 @@ export type AddressRequest = {
 export type ChatMessage = { role: "assistant" | "user"; content: string };
 
 /** Answers that usually stay the same from one baby to the next. */
-export const SEED_FIELDS = ["home", "hasCar", "feeding", "budget", "values", "preferredRetailers"] as const;
+export const SEED_FIELDS = [
+  "city",
+  "home",
+  "hasCar",
+  "household",
+  "feeding",
+  "work",
+  "travel",
+  "hairType",
+  "sensitiveSkin",
+  "languages",
+  "circle",
+  "budget",
+  "values",
+  "preferredRetailers",
+] as const;
 export type ProfileSeed = Partial<Pick<ParentProfile, (typeof SEED_FIELDS)[number]>>;
 
 export type IntakeDraft = {

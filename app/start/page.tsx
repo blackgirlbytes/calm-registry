@@ -8,14 +8,14 @@ import { Building } from "@/components/Building";
 import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
 import { TalkButton, VoiceInvite, VoiceRoom } from "@/components/voice/VoiceControls";
 import { api } from "@/lib/client";
-import { normalizeProfile } from "@/lib/profile";
-import { ParentProfileSchema, type ChatMessage, type IntakeDraft, type ParentProfile } from "@/lib/types";
+import { essentialCount } from "@/lib/intake-steps";
+import { coerceProfile } from "@/lib/profile";
+import type { ChatMessage, IntakeDraft, ParentProfile } from "@/lib/types";
 
 type Turn = { reply: string; chips: string[]; done: boolean; profile: ParentProfile | null };
 
 /** Where answers lived before they were saved to the account; moved into a draft once. */
 const LEGACY_STORAGE_KEY = "calm-registry:intake";
-const TOTAL_QUESTIONS = 9;
 
 export default function StartPage() {
   return (
@@ -62,15 +62,10 @@ function IntakeChat() {
     },
     async onFunction(name, args) {
       if (name !== "finish_intake") return `Unknown function ${name}.`;
-      // Names are optional, so a missing one shouldn't send the agent back to ask again.
-      const parsed = ParentProfileSchema.safeParse({ parentNames: "", babyName: "", ...args });
-      if (!parsed.success) {
-        const fields = [...new Set(parsed.error.issues.map((i) => i.path.join(".") || "profile"))].join(", ");
-        return `The profile isn't complete. Problems with: ${fields}. Ask about those, then call finish_intake again.`;
-      }
+      // Anything skipped or garbled gets a default; the parent fixes it on the answers card.
       voice.stopAfterSpeaking();
       setChips([]);
-      setProfile(normalizeProfile(parsed.data));
+      setProfile(coerceProfile({ ...draft?.seed, ...args }));
       return "Success. Their answers are on screen for them to check before building.";
     },
     onError: setError,
@@ -207,11 +202,12 @@ function IntakeChat() {
 
   const answered = messages.filter((m) => m.role === "user").length;
   const lastAnswer = messages.findLastIndex((m) => m.role === "user");
-  const left = TOTAL_QUESTIONS - Object.keys(draft?.seed ?? {}).length - answered;
+  const total = essentialCount(draft?.seed ?? null) + 1;
+  const left = total - answered;
 
   return (
     <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
-    <IntakeGuide answered={answered} />
+    <IntakeGuide answered={answered} total={total} />
     <div className="flex min-h-dvh flex-col pt-5 lg:pt-10">
       <header className="mb-8 space-y-2 text-[13px]">
         {draft?.registryId && (
@@ -400,18 +396,18 @@ function IntakeChat() {
 
 const TOPICS = [
   "When your baby is due",
-  "Your home, and whether you drive",
-  "How you plan to feed",
-  "Your budget",
-  "What matters to you, like eco-friendly or minimal",
-  "What you already have",
+  "Boy, girl, or a surprise",
+  "Your city, home, and who lives with you",
+  "Feeding and going back to work",
+  "What's already covered",
   "Stores you like",
+  "Optional: a few quick personal touches",
 ];
 const STEPS = ["Answer a few questions", "Review your draft", "Share with family"];
 
 /** Laptop-only context beside the chat: where you are, and what the questions cover. */
-function IntakeGuide({ answered }: { answered: number }) {
-  const progress = Math.min(1, answered / 8);
+function IntakeGuide({ answered, total }: { answered: number; total: number }) {
+  const progress = Math.min(1, answered / total);
   return (
     <aside className="hidden space-y-10 pt-10 lg:sticky lg:top-0 lg:block lg:self-start">
       <p className="font-serif text-[17px] font-semibold">Calm Registry</p>
