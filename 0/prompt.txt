@@ -1,0 +1,82 @@
+i need more help understanding option 2
+
+---
+
+okay so i added deepgram credits..and why does it need member permissions? I thought I could just leave it at default permissions
+
+---
+
+it was changed now
+
+---
+
+how come it says welcome baby last name..how would someone fill out information about their baby and themselves and their address etc
+
+---
+
+keep trying
+
+---
+
+lets think about the project thus far..i feel like it's missing information..like it says is your budget lean or moderate..but whats the difference..lean or moderate is different for different people and then it asks about gender neutral..but what if i want gender specific..how does it know my gender..i dont want to ask a ton more questions..but there has to be a better way to capture more information
+
+---
+
+wait before we talk about that..i wish there was a way to restart or reset your answers AND your cart
+
+---
+
+compress this conversation
+
+---
+
+no run /compact on the conversayion i mean
+
+---
+
+okay lets talk about the questions in the beginning..improving the intake
+
+---
+
+still ask store to the pregnant person cuz its her preferred choice of where she would like things to come from..i thinkt he values like the options are too.."white" and i like knowing if gender specific and stuff idkk..i feel like there may be more things to know about the baby we're buying for
+
+---
+
+interesting how would this work with voice..i like these types of questions..but how would it work with voice..because voice is our primary..without being overwhelming
+
+---
+
+hmm idk
+
+---
+
+i think like the question at the end for touches is too vague..a mom might not think or remeber to say oh my child has curly hair or even if u let her just blab..idk if she will be thinking about the right relevant things
+
+---
+
+we can ask this question in a different way..idk about it
+
+"Do curls run in your family?" Yes adds a soft brush, a wide-tooth comb and a satin crib sheet.
+
+what no to this question.."Any colors or a look you love for baby's things? Like pastels, bright colors, or neutrals." This answer is free text.
+
+---
+
+take this out "Any traditions coming up, like a christening, naming ceremony, or first-year celebration?" Yes adds an outfit and a keepsake.
+
+
+tell me before you propose a spec..what other questions should we be asking
+
+---
+
+voice should be the primary option for the keep skip or have my own experience
+
+---
+
+The registry overview page now has a − / + quantity stepper on each item. When it's clicked, the app calls a Postgres function, public.registry_set_item_qty. That function doesn't exist in production yet, so the stepper currently shows an error instead of saving.
+
+---
+
+i keep getting this error 
+
+also i did share names
