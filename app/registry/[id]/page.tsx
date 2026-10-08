@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { use, useRef, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
 import { ProductPhoto } from "@/components/ProductPhoto";
 import { ProductRating } from "@/components/ProductRating";
@@ -12,7 +12,7 @@ import { useRegistry } from "@/components/useRegistry";
 import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
 import { TalkButton, VoiceInvite, VoiceRoom } from "@/components/voice/VoiceControls";
 import { api, formatPrice, totalPrice } from "@/lib/client";
-import { CATEGORIES, RETAILER_LABELS, type EditDiff, type Registry, type RegistryItem } from "@/lib/types";
+import { CATEGORIES, RETAILER_LABELS, type Category, type EditDiff, type ItemStatus, type Registry, type RegistryItem } from "@/lib/types";
 
 export default function RegistryPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -73,31 +73,188 @@ function Overview({ id }: { id: string }) {
         <EditBar registry={registry} onApplied={reload} />
       </aside>
 
-      <div className="mt-12 space-y-10 lg:mt-0">
-        {CATEGORIES.map((category) => {
-          const items = kept.filter((i) => i.category === category);
-          if (!items.length) return null;
+      <ItemList registryId={id} items={kept} setStatus={setStatus} />
+    </main>
+  );
+}
+
+type Filter = "all" | "needed" | "gifted";
+
+function readOpen(key: string): Category[] {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? "[]") as Category[];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * The list, one category per row. Closed, a category shows its count, subtotal, and a few photos,
+ * so the whole registry fits on about a screen. Which ones are open is remembered on this device.
+ */
+function ItemList({
+  registryId,
+  items,
+  setStatus,
+}: {
+  registryId: string;
+  items: RegistryItem[];
+  setStatus: (itemId: string, status: ItemStatus) => Promise<void>;
+}) {
+  const storageKey = `calm-registry:open:${registryId}`;
+  const [open, setOpen] = useState<Category[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [removed, setRemoved] = useState<{ item: RegistryItem; status: ItemStatus } | null>(null);
+
+  useEffect(() => setOpen(readOpen(storageKey)), [storageKey]);
+
+  useEffect(() => {
+    if (!removed) return;
+    const timer = setTimeout(() => setRemoved(null), 6000);
+    return () => clearTimeout(timer);
+  }, [removed]);
+
+  function save(next: Category[]) {
+    setOpen(next);
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // Open categories just won't be remembered.
+    }
+  }
+
+  function toggle(category: Category) {
+    save(open.includes(category) ? open.filter((c) => c !== category) : [...open, category]);
+  }
+
+  function remove(item: RegistryItem) {
+    setRemoved({ item, status: item.status });
+    void setStatus(item.id, "skip");
+  }
+
+  function undo() {
+    if (!removed) return;
+    void setStatus(removed.item.id, removed.status);
+    setRemoved(null);
+  }
+
+  const gifted = items.filter((i) => i.purchased).length;
+  const shown = filter === "all" ? items : items.filter((i) => (filter === "gifted" ? i.purchased : !i.purchased));
+  const groups = CATEGORIES.map((category) => ({ category, items: shown.filter((i) => i.category === category) })).filter(
+    (g) => g.items.length > 0,
+  );
+  const allOpen = groups.every((g) => open.includes(g.category));
+
+  return (
+    <div className="mt-12 lg:mt-0">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 pb-4">
+        {gifted > 0 ? (
+          <div role="group" aria-label="Show" className="flex gap-1 rounded-xl bg-surface p-1 text-[14px]">
+            {(
+              [
+                ["all", `All ${items.length}`],
+                ["needed", `Still needed ${items.length - gifted}`],
+                ["gifted", `Gifted ${gifted}`],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={filter === value}
+                onClick={() => setFilter(value)}
+                className={`rounded-lg px-3 py-1.5 tabular-nums transition-colors ${
+                  filter === value ? "bg-bg font-semibold text-text shadow-[0_0_0_1px_var(--line)]" : "text-muted hover:text-text"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <h2 className="font-semibold">Your list</h2>
+        )}
+        {filter === "all" && (
+          <button className="link text-[13px]" onClick={() => save(allOpen ? [] : groups.map((g) => g.category))}>
+            {allOpen ? "Close all" : "Open all"}
+          </button>
+        )}
+      </div>
+
+      {groups.length === 0 && <p className="border-t border-line py-6 text-muted">Nothing here yet.</p>}
+
+      <div className="border-t border-line">
+        {groups.map(({ category, items }) => {
+          // Filtering shows the matching items, so every category opens.
+          const expanded = filter !== "all" || open.includes(category);
           const subtotal = items.reduce((sum, i) => sum + totalPrice(i.offers, i.qty), 0);
+          const giftedHere = items.filter((i) => i.purchased).length;
+          const panel = `cat-panel-${category}`;
           return (
-            <section key={category} aria-labelledby={`cat-${category}`}>
-              <div className="flex items-baseline justify-between border-b border-line pb-3">
-                <h2 id={`cat-${category}`} className="font-serif text-[21px] font-semibold">
-                  {category}
-                </h2>
-                <span className="text-[13px] text-muted tabular-nums">
-                  {items.length} {items.length === 1 ? "item" : "items"}, {money(subtotal)}
-                </span>
-              </div>
-              <ul>
-                {items.map((item) => (
-                  <ItemRow key={item.id} item={item} onRemove={() => void setStatus(item.id, "skip")} />
-                ))}
-              </ul>
+            <section key={category} aria-labelledby={`cat-${category}`} className="border-b border-line">
+              <h2 id={`cat-${category}`}>
+                <button
+                  aria-expanded={expanded}
+                  aria-controls={panel}
+                  onClick={() => toggle(category)}
+                  disabled={filter !== "all"}
+                  className="group flex w-full items-center gap-4 py-4 text-left"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-serif text-[21px] font-semibold transition-colors group-hover:text-accent">
+                      {category}
+                    </span>
+                    <span className="block text-[13px] text-muted tabular-nums">
+                      {items.length} {items.length === 1 ? "item" : "items"}
+                      {subtotal > 0 && `, ${money(subtotal)}`}
+                      {filter === "all" && giftedHere > 0 && `, ${giftedHere} gifted`}
+                    </span>
+                  </span>
+                  {!expanded && (
+                    <span className="flex shrink-0 gap-1.5" aria-hidden>
+                      {items.filter((i) => i.offers[0]?.imageUrl).slice(0, 5).map((item, n) => (
+                        <ProductPhoto
+                          key={item.id}
+                          offer={item.offers[0]}
+                          label=""
+                          className={`h-10 w-10 rounded-[10px] sm:h-12 sm:w-12 ${n >= 3 ? "hidden sm:flex" : ""}`}
+                        />
+                      ))}
+                    </span>
+                  )}
+                  {filter === "all" && (
+                    <svg
+                      viewBox="0 0 20 20"
+                      aria-hidden
+                      className={`h-4 w-4 shrink-0 text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
+                    >
+                      <path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </button>
+              </h2>
+              {expanded && (
+                <ul id={panel} className="pb-2 xl:grid xl:grid-cols-2 xl:gap-x-10">
+                  {items.map((item) => (
+                    <ItemRow key={item.id} item={item} onRemove={() => remove(item)} />
+                  ))}
+                </ul>
+              )}
             </section>
           );
         })}
       </div>
-    </main>
+
+      {removed && (
+        <div
+          role="status"
+          className="fixed inset-x-4 bottom-24 z-30 mx-auto flex max-w-md items-center justify-between gap-4 rounded-xl bg-room px-4 py-3 text-room-text shadow-[0_8px_24px_rgb(58_49_80/0.12)] lg:bottom-8"
+        >
+          <span className="min-w-0 truncate">Removed {removed.item.name}</span>
+          <button className="shrink-0 font-semibold underline underline-offset-4" onClick={undo}>
+            Undo
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -105,7 +262,7 @@ function Overview({ id }: { id: string }) {
 function ItemRow({ item, onRemove }: { item: RegistryItem; onRemove: () => void }) {
   const primary = item.offers[0];
   return (
-    <li className="flex gap-4 border-b border-line py-4">
+    <li className="flex gap-4 border-t border-line py-4">
       <ProductPhoto offer={primary} label={item.name} className="h-[72px] w-[72px] sm:h-20 sm:w-20" />
       <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-baseline justify-between gap-3">
