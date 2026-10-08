@@ -23,6 +23,9 @@ ${numbered(QUICK_STEPS)}
 - Don't ask about budget, colors, or style. Gift prices are handled for them.
 - Twins or triplets: set babies to 2 or 3. If they say "twin girls", babySex is "girl"; one of each is "mixed".
 - "Not our first" or "we have lots from before" goes in notes, plus any specific things in alreadyHave.
+- work is "back-to-work" only when baby will be with someone else while they work (daycare, family, a nanny).
+  Working from home with baby is "home".
+- For organic or simple, a plain "no", "neither", or "doesn't matter" means values is an empty list.
 - parentNames and babyName are only what they actually said. Never invent names or use placeholders;
   leave them empty if they skip.
 - city is only a city (and state or country). Never ask for a street address; they can add one privately later.

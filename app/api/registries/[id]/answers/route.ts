@@ -2,9 +2,9 @@ import { proposeEdit } from "@/lib/ai/edit";
 import { describeChanges } from "@/lib/answers";
 import { applyDiff } from "@/lib/apply-diff";
 import { getOwnerId, unauthorized } from "@/lib/auth";
-import { normalizeProfile } from "@/lib/profile";
+import { coerceProfile } from "@/lib/profile";
 import { registryStore, RegistryError } from "@/lib/registry-store";
-import { EditDiffSchema, ParentProfileSchema, type EditDiff } from "@/lib/types";
+import { EditDiffSchema, type EditDiff } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -23,9 +23,9 @@ export async function POST(request: Request, context: RouteContext) {
   if (!ownerId) return unauthorized();
 
   const body = (await request.json().catch(() => ({}))) as { profile?: unknown; diff?: unknown };
-  const parsedProfile = ParentProfileSchema.safeParse(body.profile);
-  if (!parsedProfile.success) return Response.json({ error: "Those answers aren't complete." }, { status: 400 });
-  const profile = normalizeProfile(parsedProfile.data);
+  // Pages opened before an update send older answers, so they're upgraded rather than rejected.
+  if (!body.profile || typeof body.profile !== "object") return Response.json({ error: "Those answers aren't complete." }, { status: 400 });
+  const profile = coerceProfile(body.profile);
   const store = registryStore();
 
   try {

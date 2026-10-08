@@ -1,9 +1,8 @@
 import { generateRegistry } from "@/lib/ai/generate";
 import { getOwnerId, unauthorized } from "@/lib/auth";
 import { withOffers } from "@/lib/offers";
-import { normalizeProfile } from "@/lib/profile";
+import { coerceProfile } from "@/lib/profile";
 import { registryStore, RegistryError } from "@/lib/registry-store";
-import { ParentProfileSchema } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -23,12 +22,12 @@ export async function POST(request: Request) {
   if (!ownerId) return unauthorized();
 
   const body = (await request.json().catch(() => ({}))) as { profile?: unknown; draftId?: unknown; registryId?: unknown };
-  const parsed = ParentProfileSchema.safeParse(body.profile);
-  if (!parsed.success) return Response.json({ error: "A valid profile is required." }, { status: 400 });
+  // Pages opened before an update send older answers, so they're upgraded rather than rejected.
+  if (!body.profile || typeof body.profile !== "object") return Response.json({ error: "A valid profile is required." }, { status: 400 });
 
   try {
     const store = registryStore();
-    const profile = normalizeProfile(parsed.data);
+    const profile = coerceProfile(body.profile);
     let id: string;
 
     if (typeof body.registryId === "string") {
