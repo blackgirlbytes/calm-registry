@@ -1,0 +1,344 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4CGFZK7DC2Z8QBA529K3B94",
+  "session_id": "ea6a070e-d31d-415c-a6ad-92924e0eb767",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T01:01:57.921834Z",
+  "branch": "main",
+  "checkpoints_count": 10,
+  "save_step_count": 8,
+  "files_touched": [
+    ".env.example",
+    "README.md",
+    "app/api/registries/route.ts",
+    "app/api/voice/route.ts",
+    "app/globals.css",
+    "app/layout.tsx",
+    "app/page.tsx",
+    "app/r/[slug]/page.tsx",
+    "app/registry/[id]/page.tsx",
+    "app/registry/[id]/review/page.tsx",
+    "app/start/page.tsx",
+    "components/AuthGate.tsx",
+    "components/ItemCard.tsx",
+    "components/ProductPhoto.tsx",
+    "components/ResumeList.tsx",
+    "components/Status.tsx",
+    "components/voice/VoiceControls.tsx",
+    "components/voice/useVoiceAgent.ts",
+    "lib/ai/edit.ts",
+    "lib/ai/generate.ts",
+    "lib/ai/intake.ts",
+    "lib/client.ts",
+    "lib/format.ts",
+    "lib/retail/aggregator.ts",
+    "lib/retail/catalog.ts",
+    "lib/retail/mock.ts",
+    "public/voice-capture-worklet.js"
+  ],
+  "agent": "Claude Code",
+  "model": "claude-opus-5-5",
+  "turn_id": "1df83bf45686",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 218,
+    "cache_creation_tokens": 239198,
+    "cache_read_tokens": 19296160,
+    "output_tokens": 87329,
+    "api_call_count": 107,
+    "subagent_tokens": {
+      "input_tokens": 142,
+      "cache_creation_tokens": 248376,
+      "cache_read_tokens": 8568974,
+      "output_tokens": 64251,
+      "api_call_count": 71
+    }
+  },
+  "skill_events_version": 1,
+  "skill_events": [
+    {
+      "id": "prompt-skill-claude-code-frontend-design-2026-10-08T00:17:12.859158Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "frontend-design"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "9a80ba2732b7",
+      "timestamp": "2026-10-08T00:17:12.859158Z",
+      "native": {
+        "command": "/frontend-design"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/frontend-design",
+        "default_collapsed": true
+      }
+    },
+    {
+      "id": "prompt-skill-claude-code-frontend-design-2026-10-08T00:23:49.521235Z",
+      "event_type": "prompt_invocation",
+      "skill": {
+        "name": "frontend-design"
+      },
+      "source": {
+        "agent": "claude-code",
+        "signal": "prompt_slash_command",
+        "confidence": "explicit"
+      },
+      "turn_id": "b65fcf674419",
+      "timestamp": "2026-10-08T00:23:49.521235Z",
+      "native": {
+        "command": "/frontend-design"
+      },
+      "collapse": {
+        "target": "user_message",
+        "label": "/frontend-design",
+        "default_collapsed": true
+      }
+    }
+  ],
+  "session_metrics": {
+    "turn_count": 10
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-08T01:01:57.845393Z",
+    "agent_lines": 25,
+    "agent_removed": 337,
+    "human_added": 2378,
+    "human_modified": 942,
+    "human_removed": 0,
+    "total_committed": 3298,
+    "total_lines_changed": 3682,
+    "agent_percentage": 9.831613253666486,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 815,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 1085,
+      "user_lines_removed": 99,
+      "agent_lines_added": 1783,
+      "agent_lines_removed": 462,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "lib/retail/catalog.json": 264
+      },
+      "user_removed_per_file": {
+        "lib/retail/catalog.json": 99
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 1210,
+      "user_lines_removed": 143,
+      "agent_lines_added": 1818,
+      "agent_lines_removed": 472,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "app/api/registries/route.ts": 2,
+        "components/ProductPhoto.tsx": 10,
+        "lib/ai/intake.ts": 6,
+        "lib/ai/prompts.ts": 25,
+        "lib/profile.ts": 15,
+        "lib/retail/catalog.json": 264,
+        "lib/retail/catalog.ts": 67
+      },
+      "user_removed_per_file": {
+        "app/api/registries/route.ts": 1,
+        "components/ProductPhoto.tsx": 7,
+        "lib/ai/intake.ts": 26,
+        "lib/retail/catalog.json": 99,
+        "lib/retail/catalog.ts": 10
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 1202,
+      "user_lines_removed": 116,
+      "agent_lines_added": 1826,
+      "agent_lines_removed": 499,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "components/ProductPhoto.tsx": 10,
+        "lib/ai/prompts.ts": 25,
+        "lib/profile.ts": 15,
+        "lib/retail/catalog.json": 264,
+        "lib/retail/catalog.ts": 67
+      },
+      "user_removed_per_file": {
+        "components/ProductPhoto.tsx": 7,
+        "lib/retail/catalog.json": 99,
+        "lib/retail/catalog.ts": 10
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 1322,
+      "user_lines_removed": 116,
+      "agent_lines_added": 1826,
+      "agent_lines_removed": 499,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "components/ProductPhoto.tsx": 10,
+        "lib/ai/prompts.ts": 25,
+        "lib/profile.ts": 15,
+        "lib/retail/catalog.json": 264,
+        "lib/retail/catalog.ts": 67,
+        "lib/voice/settings.ts": 120
+      },
+      "user_removed_per_file": {
+        "components/ProductPhoto.tsx": 7,
+        "lib/retail/catalog.json": 99,
+        "lib/retail/catalog.ts": 10
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 1399,
+      "user_lines_removed": 146,
+      "agent_lines_added": 2279,
+      "agent_lines_removed": 498,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "app/start/page.tsx": 77,
+        "components/ProductPhoto.tsx": 10,
+        "lib/ai/prompts.ts": 25,
+        "lib/profile.ts": 15,
+        "lib/retail/catalog.json": 264,
+        "lib/retail/catalog.ts": 67,
+        "lib/voice/settings.ts": 120
+      },
+      "user_removed_per_file": {
+        "app/start/page.tsx": 30,
+        "components/ProductPhoto.tsx": 7,
+        "lib/retail/catalog.json": 99,
+        "lib/retail/catalog.ts": 10
+      }
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 1352,
+      "user_lines_removed": 129,
+      "agent_lines_added": 2458,
+      "agent_lines_removed": 539,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "components/ProductPhoto.tsx": 10,
+        "components/ResumeList.tsx": 30,
+        "lib/ai/prompts.ts": 25,
+        "lib/profile.ts": 15,
+        "lib/retail/catalog.json": 264,
+        "lib/retail/catalog.ts": 67,
+        "lib/voice/settings.ts": 120
+      },
+      "user_removed_per_file": {
+        "components/ProductPhoto.tsx": 7,
+        "components/ResumeList.tsx": 13,
+        "lib/retail/catalog.json": 99,
+        "lib/retail/catalog.ts": 10
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 1371,
+      "user_lines_removed": 146,
+      "agent_lines_added": 2505,
+      "agent_lines_removed": 539,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "components/ProductPhoto.tsx": 10,
+        "components/ResumeList.tsx": 30,
+        "components/voice/useVoiceAgent.ts": 19,
+        "lib/ai/prompts.ts": 25,
+        "lib/profile.ts": 15,
+        "lib/retail/catalog.json": 264,
+        "lib/retail/catalog.ts": 67,
+        "lib/voice/settings.ts": 120
+      },
+      "user_removed_per_file": {
+        "components/ProductPhoto.tsx": 7,
+        "components/ResumeList.tsx": 13,
+        "components/voice/useVoiceAgent.ts": 17,
+        "lib/retail/catalog.json": 99,
+        "lib/retail/catalog.ts": 10
+      }
+    }
+  ]
+}

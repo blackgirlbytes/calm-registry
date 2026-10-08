@@ -3,8 +3,12 @@
   "checkpoint_id": "01M4CGFZK7DC2Z8QBA529K3B94",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 11,
   "files_touched": [
+    ".env.example",
+    "README.md",
+    "app/api/registries/route.ts",
+    "app/api/voice/route.ts",
     "app/globals.css",
     "app/layout.tsx",
     "app/page.tsx",
@@ -14,10 +18,21 @@
     "app/start/page.tsx",
     "components/AuthGate.tsx",
     "components/ItemCard.tsx",
+    "components/ProductPhoto.tsx",
+    "components/ResumeList.tsx",
+    "components/Status.tsx",
+    "components/voice/VoiceControls.tsx",
+    "components/voice/useVoiceAgent.ts",
+    "lib/ai/edit.ts",
+    "lib/ai/generate.ts",
+    "lib/ai/intake.ts",
     "lib/client.ts",
+    "lib/format.ts",
     "lib/retail/aggregator.ts",
     "lib/retail/catalog.json",
-    "lib/retail/mock.ts"
+    "lib/retail/catalog.ts",
+    "lib/retail/mock.ts",
+    "public/voice-capture-worklet.js"
   ],
   "sessions": [
     {
@@ -26,13 +41,27 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 218,
+    "cache_creation_tokens": 239198,
+    "cache_read_tokens": 19296160,
+    "output_tokens": 87329,
+    "api_call_count": 107,
+    "subagent_tokens": {
+      "input_tokens": 142,
+      "cache_creation_tokens": 248376,
+      "cache_read_tokens": 8568974,
+      "output_tokens": 64251,
+      "api_call_count": 71
+    }
   }
 }
