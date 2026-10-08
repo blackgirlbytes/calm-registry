@@ -1,0 +1,1 @@
+it says read reviews on amazon on the page where you review if u want the product but i dont want that..i want it to show how many stars it got..and when you click the stars..then it brings you to the reviews on amazon or whatever store in question

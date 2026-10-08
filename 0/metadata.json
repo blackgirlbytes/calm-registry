@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4D9YPNM2M3SM3B4RAWH1BJ6",
+  "session_id": "207777f3-6286-4b20-a8fb-d8c27ac82d61",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T08:26:53.725352Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Factory AI Droid",
+  "model": "auto",
+  "turn_id": "e5f8f698c86e",
+  "checkpoint_transcript_start": 27,
+  "transcript_lines_at_start": 27,
+  "compact_transcript_start": 16,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 841,
+      "user_lines_removed": 5,
+      "agent_lines_added": 824,
+      "agent_lines_removed": 158,
+      "user_added_per_file": {
+        ".agents/hooks.json": 28,
+        ".claude/launch.json": 6,
+        ".claude/settings.json": 90,
+        ".codex/hooks.json": 88,
+        ".cursor/hooks.json": 40,
+        ".factory/settings.json": 85,
+        ".github/hooks/entire.json": 68,
+        ".opencode/plugins/entire.ts": 269,
+        ".pi/extensions/entire/index.ts": 147,
+        "lib/ai/generate.ts": 20
+      },
+      "user_removed_per_file": {
+        "lib/ai/generate.ts": 5
+      }
+    }
+  ]
+}
