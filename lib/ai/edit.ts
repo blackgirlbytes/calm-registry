@@ -1,5 +1,6 @@
 import "server-only";
 import { EditDiffSchema, type EditDiff, type Registry } from "../types";
+import { CATALOG_QUERY_RULE } from "../retail/catalog";
 import { callJson, isOpenAIConfigured } from "./openai";
 
 const SYSTEM_PROMPT = `You edit a baby registry based on a parent's plain-language request.
@@ -9,7 +10,8 @@ Return a minimal diff:
 - add: new items (same shape as generation: name, category, priority, reason, qty, searchQuery).
 - swap: items to re-search with a new searchQuery (e.g. a cheaper, eco, or compact variant) plus a new one-line reason.
 - summary: one short friendly sentence describing what you changed.
-Only change what the request asks for. Categories: Sleep, Feeding, Diapering, Bath, On-the-go, Clothing, Health, Play.`;
+Only change what the request asks for. Categories: Sleep, Feeding, Diapering, Bath, On-the-go, Clothing, Health, Play.
+${CATALOG_QUERY_RULE}`;
 
 function itemsForPrompt(registry: Registry) {
   return registry.items

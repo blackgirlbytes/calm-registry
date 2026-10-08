@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AuthGate } from "@/components/AuthGate";
+import { useVoiceAgent, useVoiceEnabled } from "@/components/voice/useVoiceAgent";
+import { MicIcon, VoiceControls } from "@/components/voice/VoiceControls";
 import { api } from "@/lib/client";
-import type { ChatMessage, ParentProfile } from "@/lib/types";
+import { CATEGORIES, ParentProfileSchema, type ChatMessage, type ParentProfile } from "@/lib/types";
 
 type Turn = { reply: string; chips: string[]; done: boolean; profile: ParentProfile | null };
 
@@ -27,6 +29,25 @@ function IntakeChat() {
   const [building, setBuilding] = useState(false);
   const [error, setError] = useState("");
   const bottom = useRef<HTMLDivElement>(null);
+  const voiceEnabled = useVoiceEnabled();
+  const voice = useVoiceAgent({
+    onText(role, content, isGreeting) {
+      // The greeting repeats a question that's already on screen.
+      if (!isGreeting) setMessages((prev) => [...prev, { role, content }]);
+    },
+    async onFunction(name, args) {
+      if (name !== "finish_intake") return `Unknown function ${name}.`;
+      const parsed = ParentProfileSchema.safeParse(args);
+      if (!parsed.success) {
+        const fields = [...new Set(parsed.error.issues.map((i) => i.path.join(".") || "profile"))].join(", ");
+        return `The profile isn't complete. Problems with: ${fields}. Ask about those, then call finish_intake again.`;
+      }
+      voice.stopAfterSpeaking();
+      void build(parsed.data);
+      return "Success. The registry is being built now.";
+    },
+    onError: setError,
+  });
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -69,7 +90,7 @@ function IntakeChat() {
       router.push(`/registry/${id}/review`);
     } catch (e) {
       setBuilding(false);
-      setError(e instanceof Error ? e.message : "We couldn't build your registry.");
+      setError(e instanceof Error ? e.message : "Your registry couldn't be built. Try again.");
     }
   }
 
@@ -83,86 +104,197 @@ function IntakeChat() {
     void send(history);
   }
 
+  function talk() {
+    setError("");
+    setChips([]);
+    void voice.start({ mode: "intake", messages });
+  }
+
   function restart() {
+    voice.stop();
     localStorage.removeItem(STORAGE_KEY);
     setMessages([]);
     void send([]);
   }
 
-  if (building) {
-    return (
-      <div className="flex min-h-dvh flex-col items-center justify-center gap-4 text-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-4 border-sage/30 border-t-sage" />
-        <h2 className="text-xl font-semibold">Building your registry…</h2>
-        <p className="text-muted">Comparing Amazon, Target, and Walmart for you. This takes about 30 seconds.</p>
-      </div>
-    );
-  }
+  if (building) return <Building />;
 
   const answered = messages.filter((m) => m.role === "user").length;
 
   return (
-    <div className="flex min-h-dvh flex-col pt-6">
-      <header className="mb-4 flex items-center justify-between">
-        <span className="text-sm text-muted">About {Math.max(1, 8 - answered)} quick questions left</span>
-        <button onClick={restart} className="text-sm text-muted underline">
+    <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-16">
+    <IntakeGuide answered={answered} />
+    <div className="flex min-h-dvh flex-col pt-5 lg:pt-10">
+      <header className="mb-8 flex items-center justify-between text-[13px]">
+        <span className="text-muted">
+          {8 - answered > 1 ? `About ${8 - answered} questions left` : "Almost done"}
+        </span>
+        <button onClick={restart} className="link">
           Start over
         </button>
       </header>
 
-      <div className="flex-1 space-y-3">
-        {messages.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex"}>
-            <p
-              className={
-                m.role === "user"
-                  ? "max-w-[80%] rounded-3xl rounded-br-md bg-sage px-4 py-3 text-white"
-                  : "max-w-[85%] rounded-3xl rounded-bl-md bg-white px-4 py-3 shadow-sm"
-              }
-            >
+      <div className="flex-1 space-y-6" aria-live="polite">
+        {messages.map((m, i) =>
+          m.role === "user" ? (
+            <div key={i} className="flex justify-end">
+              <p className="max-w-[80%] rounded-2xl rounded-br-md bg-surface px-4 py-2.5 lg:max-w-[60%] lg:px-5 lg:py-3 lg:text-[17px]">{m.content}</p>
+            </div>
+          ) : (
+            <p key={i} className="max-w-[65ch] font-serif text-[19px] leading-relaxed lg:text-[22px]">
               {m.content}
             </p>
-          </div>
-        ))}
-        {thinking && <p className="px-2 text-muted">…</p>}
+          ),
+        )}
+        {thinking && <p className="font-serif text-[19px] text-muted">…</p>}
         {error && (
-          <p className="text-sm text-red-600">
+          <p role="alert" className="text-[14px] text-danger">
             {error}{" "}
-            <button className="underline" onClick={() => void send(messages)}>
-              Retry
+            <button className="underline underline-offset-4" onClick={() => void send(messages)}>
+              Try again
             </button>
           </p>
         )}
         <div ref={bottom} />
       </div>
 
-      <div className="sticky bottom-0 space-y-3 bg-cream pt-3 pb-4">
-        {chips.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {chips.map((chip) => (
-              <button key={chip} className="chip" onClick={() => answer(chip)} disabled={thinking}>
-                {chip}
-              </button>
-            ))}
-          </div>
-        )}
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            answer(input);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Or type anything…"
-            className="flex-1 rounded-full border border-ink/15 bg-white px-5 py-3 outline-none focus:border-sage"
+      <div className="sticky bottom-0 -mx-4 space-y-3 bg-bg px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:px-6">
+        {voice.active ? (
+          <VoiceControls
+            status={voice.status}
+            muted={voice.muted}
+            onMute={voice.setMuted}
+            onStop={voice.stop}
+            stopLabel="Switch to typing"
           />
-          <button className="btn-primary" disabled={thinking || !input.trim()}>
-            Send
-          </button>
-        </form>
+        ) : (
+          <>
+            {chips.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {chips.map((chip) => (
+                  <button key={chip} className="chip" onClick={() => answer(chip)} disabled={thinking}>
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            )}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                answer(input);
+              }}
+              className="flex gap-2"
+            >
+              <label htmlFor="chat-input" className="sr-only">
+                Your answer
+              </label>
+              <input
+                id="chat-input"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Or type your own answer"
+                className="field"
+              />
+              {voiceEnabled && !input.trim() ? (
+                <button type="button" className="btn-quiet shrink-0 px-4" onClick={talk} disabled={thinking}>
+                  <MicIcon />
+                  Talk instead
+                </button>
+              ) : (
+                <button className="btn-primary shrink-0" disabled={thinking || !input.trim()}>
+                  Send
+                </button>
+              )}
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+    </div>
+  );
+}
+
+const TOPICS = [
+  "When your baby is due",
+  "Your home, and whether you drive",
+  "How you plan to feed",
+  "Your budget",
+  "What matters to you, like eco-friendly or minimal",
+  "What you already have",
+  "Stores you like",
+];
+const STEPS = ["Answer a few questions", "Review your draft", "Share with family"];
+
+/** Laptop-only context beside the chat: where you are, and what the questions cover. */
+function IntakeGuide({ answered }: { answered: number }) {
+  const progress = Math.min(1, answered / 8);
+  return (
+    <aside className="hidden space-y-10 pt-10 lg:sticky lg:top-0 lg:block lg:self-start">
+      <p className="font-serif text-[17px] font-semibold">Calm Registry</p>
+
+      <ol className="space-y-2">
+        {STEPS.map((step, i) => (
+          <li key={step} className={`flex gap-3 ${i === 0 ? "text-text" : "text-muted"}`}>
+            <span className={`w-4 shrink-0 font-serif ${i === 0 ? "text-accent" : ""}`}>{i + 1}</span>
+            {step}
+          </li>
+        ))}
+      </ol>
+
+      <div className="space-y-3">
+        <div className="h-1 overflow-hidden rounded-full bg-line" aria-hidden>
+          <div className="h-full rounded-full bg-accent transition-[width] duration-500" style={{ width: `${progress * 100}%` }} />
+        </div>
+        <p className="text-[13px] text-muted">The questions cover</p>
+        <ul className="space-y-1.5 text-[14px]">
+          {TOPICS.map((topic) => (
+            <li key={topic}>{topic}</li>
+          ))}
+        </ul>
+      </div>
+    </aside>
+  );
+}
+
+const BUILD_STEPS = CATEGORIES;
+const STEP_MS = 3500;
+
+/** The wait while the registry is built: a lamp warming up as each category gets filled. */
+function Building() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setStep((s) => Math.min(s + 1, BUILD_STEPS.length - 1)), STEP_MS);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="relative flex min-h-dvh flex-col justify-center overflow-hidden">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-1/2 -z-0 h-[140vmin] w-[140vmin] -translate-x-1/2 -translate-y-1/2 rounded-full"
+        style={{
+          background: "radial-gradient(circle, rgb(237 190 116 / 0.22) 0%, rgb(237 190 116 / 0.06) 35%, transparent 65%)",
+          animation: `lamp ${(BUILD_STEPS.length * STEP_MS) / 1000}s ease-out forwards`,
+        }}
+      />
+      <div className="relative mx-auto w-full max-w-2xl space-y-6">
+        <h1 className="font-serif text-[33px] leading-tight font-semibold">Building your registry</h1>
+        <p className="max-w-[40ch] text-muted">
+          Choosing real products from Amazon, Target, and Walmart, and noting why each one is on your list. This takes
+          about 30 seconds.
+        </p>
+        <ol className="space-y-1 font-serif text-[21px]" role="status">
+          {BUILD_STEPS.map((name, i) => (
+            <li
+              key={name}
+              className={`transition-colors duration-700 ${i < step ? "text-text" : i === step ? "text-accent" : "text-muted/40"}`}
+            >
+              {name}
+              {i < step && <span className="sr-only"> done</span>}
+            </li>
+          ))}
+        </ol>
       </div>
     </div>
   );

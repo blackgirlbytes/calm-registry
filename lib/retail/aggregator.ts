@@ -1,7 +1,8 @@
 import "server-only";
 import type { Offer, RetailerId } from "../types";
 import { amazonProvider } from "./amazon";
-import { mockSearch } from "./mock";
+import { catalogSearch } from "./catalog";
+import { searchLinkOffer } from "./mock";
 import type { RetailerProvider, SearchFilters } from "./provider";
 import { targetProvider } from "./target";
 import { walmartProvider } from "./walmart";
@@ -21,8 +22,15 @@ function normalize(title: string) {
   return title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").slice(0, 6).join(" ");
 }
 
-async function searchProvider(provider: RetailerProvider, query: string, filters: SearchFilters) {
-  if (!provider.isConfigured()) return mockSearch(provider.id, query, filters.maxPrice);
+async function searchProvider(
+  provider: RetailerProvider,
+  query: string,
+  filters: SearchFilters,
+  catalog: Offer[] | null,
+) {
+  if (!provider.isConfigured()) {
+    return catalog ? catalog.filter((o) => o.retailer === provider.id) : [searchLinkOffer(provider.id, query)];
+  }
   try {
     return await withTimeout(provider.search(query, filters), TIMEOUT_MS);
   } catch (error) {
@@ -40,7 +48,8 @@ function score(offer: Offer, preferred: RetailerId[]) {
 
 /** Search every retailer, then interleave so each store's best match surfaces. */
 export async function findOffers(query: string, preferred: RetailerId[], filters: SearchFilters = {}) {
-  const results = await Promise.all(PROVIDERS.map((p) => searchProvider(p, query, filters)));
+  const catalog = catalogSearch(query, filters.maxPrice);
+  const results = await Promise.all(PROVIDERS.map((p) => searchProvider(p, query, filters, catalog)));
   const seen = new Set<string>();
   const perRetailer = results.map((offers) =>
     offers

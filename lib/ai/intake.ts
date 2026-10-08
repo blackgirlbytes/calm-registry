@@ -1,7 +1,9 @@
 import "server-only";
 import { z } from "zod";
 import { ParentProfileSchema, type ChatMessage, type ParentProfile, type RetailerId } from "../types";
+import { normalizeProfile } from "../profile";
 import { callJson, isOpenAIConfigured } from "./openai";
+import { INTAKE_GUIDANCE, todayLine } from "./prompts";
 
 export const IntakeTurnSchema = z.object({
   reply: z.string().describe("Your next short, warm message. One question at a time."),
@@ -11,34 +13,12 @@ export const IntakeTurnSchema = z.object({
 });
 export type IntakeTurn = z.infer<typeof IntakeTurnSchema>;
 
-const SYSTEM_PROMPT = `You are a calm, kind registry helper for an expecting parent who is likely tired and overwhelmed.
-Your job: learn just enough to build a great baby registry, in as few questions as possible (6-9 total).
-Rules:
-- Ask ONE short question per message. Never lecture. Never list more than one question.
-- Briefly acknowledge their answer (a few words) before the next question.
+function systemPrompt() {
+  return `${INTAKE_GUIDANCE}
 - Always offer 2-5 tap-to-answer chips matching your question.
-- Cover, in roughly this order, skipping anything they've already told you:
-  due date; home (apartment/house); whether they drive; feeding plans; budget (lean/moderate/generous);
-  things they already have or are getting handed down; values (eco-friendly, minimal, gender-neutral, etc.);
-  favorite stores (Amazon, Walmart, Target).
-- If they say "I don't know" or "skip", pick a sensible default and move on. Reassure them that's fine.
 - When you have enough, set done=true, fill in profile, and reply with one encouraging sentence
   saying you're building their registry now.
-- preferredRetailers may only contain "amazon", "walmart", "target".
-- dueDate is ISO yyyy-mm-dd or null. Due dates are always in the future (within about 10 months).
-  If they only name a month, use the 15th of the NEXT time that month occurs after today.`;
-
-function systemPrompt() {
-  return `${SYSTEM_PROMPT}\nToday is ${new Date().toISOString().slice(0, 10)}.`;
-}
-
-/** Guards against the model picking a month that already passed this year. */
-function futureDueDate(dueDate: string | null) {
-  if (!dueDate || !/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return null;
-  const date = new Date(`${dueDate}T00:00:00Z`);
-  const today = new Date();
-  while (date.getTime() < today.getTime() - 24 * 3600 * 1000) date.setUTCFullYear(date.getUTCFullYear() + 1);
-  return date.toISOString().slice(0, 10);
+${todayLine()}`;
 }
 
 export const OPENING: IntakeTurn = {
@@ -52,7 +32,7 @@ export const OPENING: IntakeTurn = {
 export async function nextIntakeTurn(messages: ChatMessage[]): Promise<IntakeTurn> {
   if (!isOpenAIConfigured()) return mockIntakeTurn(messages);
   const turn = await callJson("intake_turn", IntakeTurnSchema, [{ role: "system", content: systemPrompt() }, ...messages]);
-  if (turn.profile) turn.profile = { ...turn.profile, dueDate: futureDueDate(turn.profile.dueDate) };
+  if (turn.profile) turn.profile = normalizeProfile(turn.profile);
   return turn;
 }
 

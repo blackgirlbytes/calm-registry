@@ -1,6 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { GeneratedItemSchema, type GeneratedItem, type ParentProfile } from "../types";
+import { CATALOG_QUERY_RULE } from "../retail/catalog";
 import { callJson, isOpenAIConfigured } from "./openai";
 
 const GeneratedRegistrySchema = z.object({
@@ -10,11 +11,12 @@ const GeneratedRegistrySchema = z.object({
 
 const SYSTEM_PROMPT = `You build baby registries for tired, overwhelmed expecting parents.
 Given a parent profile, return 25-35 items. Rules:
+- name: what a parent would call it, short and in sentence case, e.g. "Swaddles", "White noise machine", "Car seat". Never copy searchQuery into name.
 - category must be one of: Sleep, Feeding, Diapering, Bath, On-the-go, Clothing, Health, Play.
 - priority: "must-have" (needed in the first weeks), "nice-to-have", or "later" (3-12 months).
 - reason: ONE short, reassuring sentence explaining why this item helps THEM specifically.
 - qty: 1-20, counted in packs or sets (e.g. 4 packs of diapers, 8 bodysuits).
-- searchQuery: a concise generic product search (e.g. "convertible car seat"), no brand names.
+${CATALOG_QUERY_RULE}
 - Respect their space (apartment = compact), car use, feeding plan, budget and values.
 - Leave out anything they already have. Avoid gimmicks; favor safety-first, proven essentials.
 - Never include unsafe sleep items (bumpers, positioners, weighted sleep sacks, inclined sleepers).`;

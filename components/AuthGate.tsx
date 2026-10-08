@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { authEnabled, getBrowserSupabase } from "@/lib/client";
+import { Status } from "./Status";
 
 export function AuthGate({ children, reason }: { children: React.ReactNode; reason?: string }) {
   const [state, setState] = useState<"loading" | "in" | "out">(authEnabled ? "loading" : "in");
@@ -18,7 +19,7 @@ export function AuthGate({ children, reason }: { children: React.ReactNode; reas
   }, []);
 
   if (state === "in") return <>{children}</>;
-  if (state === "loading") return <p className="py-20 text-center text-muted">One moment…</p>;
+  if (state === "loading") return <Status>One moment…</Status>;
 
   async function send(event: React.FormEvent) {
     event.preventDefault();
@@ -32,23 +33,33 @@ export function AuthGate({ children, reason }: { children: React.ReactNode; reas
   }
 
   return (
-    <div className="card mt-16 space-y-4 text-center">
-      <h2 className="text-xl font-semibold">Save your progress</h2>
-      <p className="text-muted">{reason ?? "We'll email you a link so you can come back anytime. No password needed."}</p>
+    <div className="mx-auto max-w-md space-y-5 pt-24">
+      <h2 className="font-serif text-[26px] font-semibold">Save your progress</h2>
+      <p className="text-muted">{reason ?? "We'll email you a sign-in link so you can come back anytime. No password needed."}</p>
       {sent ? (
-        <p className="font-medium text-sage-dark">Check your inbox for a sign-in link.</p>
+        <p role="status" className="font-serif text-[17px] text-note italic">
+          Check your inbox for a sign-in link.
+        </p>
       ) : (
         <form onSubmit={send} className="space-y-3">
+          <label htmlFor="auth-email" className="sr-only">
+            Email
+          </label>
           <input
+            id="auth-email"
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full rounded-full border border-ink/15 bg-cream px-5 py-3 outline-none focus:border-sage"
+            className="field"
           />
           <button className="btn-primary w-full">Email me a link</button>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && (
+            <p role="alert" className="text-[13px] text-danger">
+              {error}
+            </p>
+          )}
         </form>
       )}
     </div>

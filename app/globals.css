@@ -1,33 +1,122 @@
 @import "tailwindcss";
 
-@theme {
-  --color-cream: #fbf7f2;
-  --color-sage: #7f9c86;
-  --color-sage-dark: #5d7a64;
-  --color-blush: #f2d6cf;
-  --color-ink: #3a3532;
-  --color-muted: #8a817b;
-  --font-sans: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+/* Dusk: where parents plan, usually late. */
+:root {
+  --bg: #222b3a;
+  --surface: #2c3647;
+  --raise: #364154;
+  --text: #ece8e1;
+  --muted: #9ba4b4;
+  --line: rgb(236 232 225 / 0.12);
+  --accent: #edbe74;
+  --on-accent: #222b3a;
+  --note: #edbe74;
+  --gift: #edbe74;
+  --gift-bg: rgb(237 190 116 / 0.12);
+  --danger: #f2a7a0;
+  --tile-glow: 0 0 0 1px rgb(255 255 255 / 0.04), 0 18px 48px -18px rgb(237 190 116 / 0.35);
+  color-scheme: dark;
+}
+
+/* Daylight: where family shops for a gift. Same ink, morning light. */
+html:has([data-theme="day"]) {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --raise: #eceef2;
+  --text: #222b3a;
+  --muted: #5e6878;
+  --line: rgb(34 43 58 / 0.12);
+  --accent: #222b3a;
+  --on-accent: #f5f6f8;
+  --note: #8a5a12;
+  --gift: #7a4f0f;
+  --gift-bg: #fbefd9;
+  --danger: #b3261e;
+  --tile-glow: 0 0 0 1px rgb(34 43 58 / 0.08);
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raise: var(--raise);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-note: var(--note);
+  --color-gift: var(--gift);
+  --color-gift-bg: var(--gift-bg);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-hanken), system-ui, sans-serif;
+  --font-serif: var(--font-literata), Georgia, serif;
+}
+
+html {
+  background: var(--bg);
 }
 
 body {
-  background: var(--color-cream);
-  color: var(--color-ink);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
   -webkit-tap-highlight-color: transparent;
 }
 
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-3 font-semibold transition active:scale-[0.98] disabled:opacity-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-3 text-[15px] font-semibold transition-colors active:translate-y-px disabled:opacity-40;
 }
 @utility btn-primary {
-  @apply btn bg-sage text-white hover:bg-sage-dark;
+  @apply btn bg-accent text-on-accent hover:brightness-105;
 }
-@utility btn-ghost {
-  @apply btn border border-ink/15 bg-white text-ink hover:bg-white/70;
-}
-@utility card {
-  @apply rounded-3xl bg-white p-5 shadow-[0_2px_20px_rgba(58,53,50,0.06)];
+@utility btn-quiet {
+  @apply btn border border-line text-text hover:bg-raise;
 }
 @utility chip {
-  @apply rounded-full border border-sage/40 bg-white px-4 py-2 text-sm text-sage-dark transition hover:bg-sage hover:text-white;
+  @apply rounded-full border border-line px-4 py-2 text-sm text-text transition-colors hover:border-accent hover:text-accent disabled:opacity-40;
+}
+@utility field {
+  @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-text outline-none placeholder:text-muted focus:border-accent;
+}
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+@utility link {
+  @apply text-muted underline decoration-line underline-offset-4 hover:text-text;
+}
+
+/* A product photo, lit like an object under a lamp. */
+@utility tile {
+  @apply overflow-hidden rounded-[14px] bg-white;
+  box-shadow: var(--tile-glow);
+}
+
+@keyframes lamp {
+  from {
+    opacity: 0.15;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

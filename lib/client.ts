@@ -1,7 +1,7 @@
 "use client";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import type { Category, Offer } from "./types";
+import type { Offer } from "./types";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -30,28 +30,15 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return json;
 }
 
-export function formatPrice(price: number | null) {
-  return price === null ? "See price" : `$${price.toFixed(2)}`;
-}
+export { formatPrice } from "./format";
 
 export function totalPrice(offers: Offer[], qty: number) {
   const price = offers[0]?.price;
   return price ? price * qty : 0;
 }
 
-export const CATEGORY_ICONS: Record<Category, string> = {
-  Sleep: "🌙",
-  Feeding: "🍼",
-  Diapering: "🧷",
-  Bath: "🛁",
-  "On-the-go": "🚼",
-  Clothing: "👶",
-  Health: "🩺",
-  Play: "🧸",
-};
-
 export const PRIORITY_LABELS = {
-  "must-have": "Must-have",
+  "must-have": "Needed in the first weeks",
   "nice-to-have": "Nice to have",
-  later: "For later",
+  later: "For later, around 3 to 12 months",
 } as const;

@@ -24,3 +24,7 @@ Supabase is required in deployed environments because Vercel's filesystem is rea
 3. Add the Vercel domains to Supabase Auth's redirect URLs so magic links work.
 4. Optionally add `OPENAI_API_KEY` and retailer keys to replace the scripted chat and
    sample products.
+5. Optionally add `DEEPGRAM_API_KEY` to turn on voice mode ("Talk instead" in the intake
+   chat and the mic in the edit box). The key needs at least Member permission so the
+   server can mint 30-second tokens. The browser connects straight to Deepgram's Voice
+   Agent API with that token; the agent's AI runs on Deepgram's hosted `gpt-4o-mini`.

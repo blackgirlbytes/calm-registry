@@ -1,6 +1,7 @@
 import { generateRegistry } from "@/lib/ai/generate";
 import { getOwnerId, unauthorized } from "@/lib/auth";
 import { withOffers } from "@/lib/offers";
+import { normalizeProfile } from "@/lib/profile";
 import { registryStore, RegistryError } from "@/lib/registry-store";
 import { ParentProfileSchema } from "@/lib/types";
 
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
   if (!parsed.success) return Response.json({ error: "A valid profile is required." }, { status: 400 });
 
   try {
-    const profile = parsed.data;
+    const profile = normalizeProfile(parsed.data);
     const { title, items } = await generateRegistry(profile);
     const id = await registryStore().create({ ownerId, title, profile, items: await withOffers(items, profile) });
     return Response.json({ id });

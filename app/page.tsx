@@ -1,57 +1,86 @@
-"use client";
-
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { api, authEnabled, getBrowserSupabase } from "@/lib/client";
+import { ProductPhoto } from "@/components/ProductPhoto";
+import { ResumeList } from "@/components/ResumeList";
+import { formatPrice } from "@/lib/format";
+import { catalogExample } from "@/lib/retail/catalog";
+import { RETAILER_LABELS } from "@/lib/types";
 
-type Summary = { id: string; slug: string; title: string };
+const EXAMPLES = [
+  { kind: "zip swaddle newborn", name: "Zip swaddle", reason: "Zips beat velcro and folding at 3am." },
+  { kind: "bassinet", name: "Bassinet", reason: "Keeps baby within arm's reach for the first months." },
+  { kind: "baby nasal aspirator", name: "Nasal aspirator", reason: "A stuffy newborn can't feed well. This clears it fast." },
+];
 
 export default function Home() {
-  const [registries, setRegistries] = useState<Summary[]>([]);
-
-  useEffect(() => {
-    void (async () => {
-      if (authEnabled) {
-        const { data } = await getBrowserSupabase()!.auth.getSession();
-        if (!data.session) return;
-      }
-      const result = await api<{ registries: Summary[] }>("/api/registries").catch(() => null);
-      if (result) setRegistries(result.registries);
-    })();
-  }, []);
+  const examples = EXAMPLES.flatMap((example) => {
+    const offer = catalogExample(example.kind);
+    return offer ? [{ ...example, offer }] : [];
+  });
 
   return (
-    <main className="space-y-8 pt-16">
-      <div className="space-y-4 text-center">
-        <p className="text-5xl">🌿</p>
-        <h1 className="text-3xl font-bold leading-tight">Your baby registry, without the overwhelm.</h1>
-        <p className="text-lg text-muted">
-          Chat for about 3 minutes. We&apos;ll build a complete registry from Amazon, Target, and Walmart. Then you
-          just review it, one small step at a time.
-        </p>
+    <main className="pt-6 lg:pt-10">
+      <p className="font-serif text-[17px] font-semibold">Calm Registry</p>
+
+      <div className="mt-8">
+        <ResumeList />
       </div>
 
-      <Link href="/start" className="btn-primary w-full text-lg">
-        Start my registry
-      </Link>
-
-      <ul className="space-y-3 text-muted">
-        <li>✓ No blank pages. You get a full draft right away.</li>
-        <li>✓ Each item tells you why it&apos;s there.</li>
-        <li>✓ Review one category at a time, about 2 minutes each.</li>
-        <li>✓ Change anything by just saying it: &ldquo;make it cheaper.&rdquo;</li>
-      </ul>
-
-      {registries.length > 0 && (
-        <section className="space-y-3">
-          <h2 className="font-semibold">Pick up where you left off</h2>
-          {registries.map((r) => (
-            <Link key={r.id} href={`/registry/${r.id}`} className="card block font-medium hover:bg-white/70">
-              {r.title} →
-            </Link>
-          ))}
+      <div className="mt-14 grid gap-16 lg:mt-20 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:gap-20">
+        <section className="space-y-6">
+          <h1 className="max-w-[16ch] font-serif text-[41px] leading-[1.1] font-semibold sm:text-[52px] lg:text-[64px] lg:leading-[1.05]">
+            A baby registry you can finish tonight
+          </h1>
+          <p className="max-w-[46ch] text-[17px] text-muted lg:text-[19px]">
+            Answer a few questions. You get a complete registry of real products from Amazon, Target, and Walmart, with
+            a note on why each one is there. Then review it one category at a time.
+          </p>
+          <Link href="/start" className="btn-primary w-full text-[17px] sm:w-auto sm:px-8">
+            Start my registry
+          </Link>
         </section>
-      )}
+
+        {examples.length > 0 && (
+          <section aria-labelledby="examples" className="space-y-5 lg:rounded-2xl lg:bg-surface lg:p-8">
+            <h2 id="examples" className="font-serif text-[21px] font-semibold">
+              Every item comes with a reason
+            </h2>
+            <ul className="space-y-6">
+              {examples.map(({ name, reason, offer }) => (
+                <li key={name} className="flex gap-4">
+                  <ProductPhoto offer={offer} label={name} className="h-24 w-24" />
+                  <div className="min-w-0 space-y-1">
+                    <p className="font-semibold">{name}</p>
+                    <p className="font-serif text-[15px] leading-snug text-note italic">{reason}</p>
+                    <p className="truncate text-[13px] text-muted">{offer.title}</p>
+                    <p className="text-[13px] text-muted tabular-nums">
+                      {formatPrice(offer.price)} at {RETAILER_LABELS[offer.retailer]}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </div>
+
+      <section aria-labelledby="how" className="mt-20 space-y-5 lg:mt-28">
+        <h2 id="how" className="font-serif text-[21px] font-semibold">
+          How it works
+        </h2>
+        <ol className="grid gap-4 lg:grid-cols-3 lg:gap-10">
+          {[
+            "Chat for about three minutes about your space, budget, and plans.",
+            "Review your draft one category at a time. Keep or skip each item.",
+            "Share one link. Family buys from whichever store they like and marks it as gifted.",
+          ].map((step, i) => (
+            <li key={step} className="flex gap-4 lg:border-t lg:border-line lg:pt-5">
+              <span className="w-4 shrink-0 font-serif text-[17px] text-accent">{i + 1}</span>
+              <span>{step}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
     </main>
   );
 }
