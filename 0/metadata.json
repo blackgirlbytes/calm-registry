@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4DA7ER17Z67HKQR4GNV83N2",
+  "session_id": "207777f3-6286-4b20-a8fb-d8c27ac82d61",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T08:31:41.084625Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "Factory AI Droid",
+  "model": "auto",
+  "turn_id": "e5f8f698c86e",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  }
+}
