@@ -53,5 +53,17 @@
       "output_tokens": 0,
       "api_call_count": 0
     }
+  },
+  "combined_attribution": {
+    "calculated_at": "2026-10-08T04:51:54.610875Z",
+    "agent_lines": 849,
+    "agent_removed": 147,
+    "human_added": 724,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1573,
+    "total_lines_changed": 1720,
+    "agent_percentage": 57.906976744186046,
+    "metric_version": 2
   }
 }
