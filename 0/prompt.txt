@@ -1,0 +1,3 @@
+I want to build a baby registry app that makes it easier for pregnant parents to create a registry. The user should be able to describe what they need conversationally and have the app generate a registry.
+
+pregnant tired moms are often required to build out registries. it feels overwhelming. how can we fix the overwhelm..what would make it easy..im not sure
