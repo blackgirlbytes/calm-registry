@@ -1,0 +1,59 @@
+/frontend-design do a ux audit
+
+---
+
+i thought the pages seemed crowded..what did you think
+
+---
+
+/goal and the stars really should only show up when youre trying to choose if you keep or skip an item..okay fix the crowded registry overview page
+
+---
+
+i think the categories and all the choices on the registry overview can be improved too..right now we scroll..but we can have the categories be collapsible..there must be more that we can do..im not sure what else
+
+---
+
+I think we dont need the subtitle and description or that can be edited a bit..help me think..basically like here ..we dont need to say "Sensitive wipes are gentle for Melody's delicate skin."
+
+but it should be editable the x8 / quantity..if i click the image or title..it should bring me to that product. this information is valuable but Graco Benton 5-in-1 Convertible Crib, Driftwood, Amazon information heirarchy is weird plus the placement of the store is weird too
+
+---
+
+we should check the dimensions not really working here Graco Benton 5-in-1 Convertible Crib, Driftwood, Amazon
+
+---
+
+no we should check these dimensions ..its too wide across the laptop screen ..and contineu to also fix
+
+I think we dont need the subtitle and description or that can be edited a bit..help me think..basically like here ..we dont need to say "Sensitive wipes are gentle for Melody's delicate skin."
+
+but it should be editable the x8 / quantity..if i click the image or title..it should bring me to that product. this information is valuable but Graco Benton 5-in-1 Convertible Crib, Driftwood, Amazon information heirarchy is weird plus the placement of the store is weird too
+
+---
+
+and so you fixed the fact that i have to side scroll? yeah go ahead and do the migration
+
+---
+
+im going to give the migration task to another agent..can you tell me what info i need to give them so they understand what the migration is and what to run
+
+---
+
+thoughts on legibility and ability to see image with colors if brightness is low plus dont need the A crib provides a secure place for Melody to sleep as she grows
+
+---
+
+take this out
+
+---
+
+navigation sucks on lapyop we need a collapsible menu sidebar. i hate this too should have something thats like my registries and then you find the registries listed there
+
+---
+
+background colors on all items is annoying..liek all the shoppable items
+
+---
+
+for the gift givers we dont need These are great for keeping Melody warm without loose blankets.
