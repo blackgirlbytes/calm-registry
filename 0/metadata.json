@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.11.4",
+  "checkpoint_id": "01M4DB6PNZ4MB869ZNYF32Y3N6",
+  "session_id": "207777f3-6286-4b20-a8fb-d8c27ac82d61",
+  "strategy": "manual-commit",
+  "created_at": "2026-10-08T08:48:44.488294Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "app/start/page.tsx",
+    "components/AnswersCard.tsx",
+    "components/RegistryActions.tsx",
+    "lib/ai/edit.ts",
+    "lib/ai/generate.ts",
+    "lib/ai/intake.ts",
+    "lib/ai/prompts.ts",
+    "lib/answers.ts",
+    "lib/profile.ts",
+    "lib/registry-store.ts",
+    "lib/retail/catalog.ts",
+    "lib/types.ts",
+    "lib/voice/settings.ts"
+  ],
+  "agent": "Factory AI Droid",
+  "model": "auto",
+  "turn_id": "e5f8f698c86e",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-10-08T08:48:44.478858Z",
+    "agent_lines": 701,
+    "agent_removed": 158,
+    "human_added": 138,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 839,
+    "total_lines_changed": 997,
+    "agent_percentage": 86.15847542627884,
+    "metric_version": 2
+  }
+}
